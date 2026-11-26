@@ -708,8 +708,10 @@ function createGame(world, saved) {
   boardEl.addEventListener("pointerdown", e => { if (!e.target.closest("button")) e.preventDefault(); });
   boardEl.addEventListener("touchstart", e => { if (!e.target.closest("button")) e.preventDefault(); }, { passive: false });
   svg.addEventListener("pointerup", e => {
-    if (moved || pts.size > 0) return;
-    const g = e.target.closest("[data-k]");
+    /* this runs before the window handler clears the pointer, so a tap still has its own pointer here */
+    if (moved || pts.size > 1) return;
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const g = hit && hit.closest ? hit.closest("[data-k]") : null;
     sel = g ? g.getAttribute("data-k") : null; fresh = new Set(); renderBoard(); renderClue();
     if (sel) focusOn(sel);
   });
