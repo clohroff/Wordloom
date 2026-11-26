@@ -34,10 +34,12 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 #app { position: fixed; left: 0; right: 0; top: 0; height: 100%; display: flex; flex-direction: column; }
 
 /* top panel */
-#top { flex: none; background: var(--panel); border-bottom: 2px solid var(--line); padding: calc(8px + env(safe-area-inset-top)) 12px 10px; display: flex; flex-direction: column; gap: 8px; z-index: 5; }
+#top { flex: none; background: var(--panel); border-bottom: 2px solid var(--line); padding: calc(6px + env(safe-area-inset-top)) 10px 6px; z-index: 5; }
 .wrap { width: 100%; max-width: 760px; margin: 0 auto; }
 #bar { display: flex; align-items: center; gap: 10px; }
-#bar h1 { font-family: var(--display); font-size: 20px; margin: 0; white-space: nowrap; }
+#bar h1 { font-family: var(--display); font-size: 18px; margin: 0; white-space: nowrap; }
+#bar .btn { height: 36px; padding: 0 12px; font-size: 14px; }
+#menuBtn { width: 40px; padding: 0 !important; font-size: 20px !important; line-height: 1; }
 #where { font-weight: 800; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; font-variant-numeric: tabular-nums; }
 #where b { color: var(--ink); }
 .btn { font-family: var(--body); font-weight: 800; font-size: 15px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
@@ -51,12 +53,30 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 .btn[disabled] { opacity: .45; cursor: default; }
 .btn:focus-visible, input:focus-visible, textarea:focus-visible, .chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 #guessbar { display: flex; gap: 8px; }
+/* bottom dock: clue, the word you're typing, and (on touch screens) the keyboard */
+#dock { flex: none; background: var(--panel); border-top: 2px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+body.touch #guess { height: 42px; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; caret-color: transparent; text-align: center; }
+body.touch #guess::placeholder { letter-spacing: 0; text-transform: none; font-size: 16px; }
+body.touch #go { display: none; }
+#kb { display: none; flex-direction: column; gap: 6px; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+body.touch #kb { display: flex; }
+.krow { display: flex; gap: 5px; justify-content: center; }
+.krow.mid { padding: 0 4.5%; }
+.key { flex: 1; min-width: 0; height: 46px; border-radius: 8px; border: 1.5px solid var(--line-strong); border-bottom-width: 3px; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-weight: 800; font-size: 19px; padding: 0; cursor: pointer; touch-action: manipulation; transition: transform .06s, background-color .06s; }
+.key.wide { flex: 1.55; font-size: 14px; }
+.key.enter { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.key.down { transform: scale(.9); background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.key.enter.down { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.key.good { background: var(--good); border-color: var(--good-edge); color: var(--good-ink); }
+.key.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
 #guess { flex: 1; min-width: 0; height: 46px; font-family: var(--body); font-size: 18px; font-weight: 800; padding: 0 14px; border-radius: 12px;
   border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
 #guess::placeholder { color: var(--muted); font-weight: 700; }
 #go { height: 46px; min-width: 86px; font-size: 16px; }
-#clue { display: flex; align-items: center; gap: 10px; height: 46px; }
-#clueTxt { flex: 1; min-width: 0; font-size: 14px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#clue { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+#clueTxt { flex: 1; min-width: 0; font-size: 14px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; cursor: pointer; }
+#clueTxt.open { -webkit-line-clamp: unset; display: block; }
 #clueTxt b { font-family: var(--display); font-weight: 600; font-size: 15px; }
 #clueTxt .muted { color: var(--muted); }
 #hintBtn { height: 38px; }
@@ -86,11 +106,19 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 @keyframes burst { 0% { transform: rotate(var(--a)) translateX(10px); opacity: 1; } 100% { transform: rotate(var(--a)) translateX(64px); opacity: 0; } }
 @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
 .shake { animation: shake .3s; }
-#zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
-#zoom .btn { width: 42px; padding: 0; font-size: 20px; }
-#zoom .btn.small { font-size: 13px; }
-#boards { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-#boards::-webkit-scrollbar { display: none; }
+#tools { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
+#tools .btn { height: 36px; padding: 0 12px; font-size: 14px; }
+#boardsBtn.new { animation: pop .6s cubic-bezier(.2, 1.5, .4, 1); background: var(--exit); border-color: var(--exit-edge); color: var(--exit-ink); }
+/* boards map: each found board sits where it is on the big flat map */
+.map { display: grid; gap: 8px; justify-content: center; }
+.tile { min-width: 0; min-height: 66px; border-radius: 12px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); font-family: var(--body); font-weight: 800; font-size: 14px;
+  padding: 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; transition: transform .08s; }
+.tile small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile.cur { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tile.cur small { color: var(--accent-ink); }
+.tile.done { border-color: var(--good-edge); }
+.tile.lock { border-style: dashed; background: transparent; color: var(--muted); cursor: default; font-size: 20px; }
+.tile:active, .tile.is-pressed { transform: scale(.94); }
 .chip { flex: none; height: 38px; border-radius: 19px; padding: 0 14px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
   font-family: var(--body); font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform .08s, background-color .12s; }
 .chip small { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -99,7 +127,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 .chip.lock { border-style: dashed; color: var(--muted); background: transparent; cursor: default; }
 .chip.new { animation: pop .6s cubic-bezier(.2, 1.5, .4, 1); }
 .chip:active, .chip.is-pressed { transform: scale(.94); }
-#toast { position: absolute; left: 50%; bottom: calc(62px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 80px); z-index: 3;
+#toast { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100% - 80px); z-index: 3;
   background: var(--ink); color: var(--panel); padding: 9px 14px; border-radius: 12px; font-weight: 800; font-size: 14px; text-align: center;
   opacity: 0; pointer-events: none; transition: opacity .18s; }
 #toast.show { opacity: 1; }
@@ -145,28 +173,40 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
     <div class="wrap" id="bar">
       <h1>Tangents</h1>
       <div id="where" aria-live="polite"></div>
-      <button class="btn primary" id="inviteBtn" type="button" hidden>Invite</button>
-      <button class="btn" id="menuBtn" type="button">Menu</button>
+      <button class="btn primary" id="inviteBtn" type="button" hidden aria-label="Invite to your team">Team</button>
+      <button class="btn" id="menuBtn" type="button" aria-label="Menu">&#9776;</button>
+    </div>
+  </div>
+  <div id="board">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Word web"></svg>
+    <div id="tools">
+      <button class="btn" id="boardsBtn" type="button">Boards</button>
+      <button class="btn" id="zfit" type="button" aria-label="Fit board to screen">Fit</button>
+    </div>
+    <div id="soon"></div>
+    <div id="toast" role="status"></div>
+  </div>
+  <div id="dock">
+    <div class="wrap" id="clue">
+      <div id="clueTxt"></div>
+      <button class="btn" id="hintBtn" type="button">Hint</button>
     </div>
     <form class="wrap" id="guessbar" autocomplete="off">
       <input id="guess" type="text" enterkeyhint="go" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Type a word" aria-label="Your guess">
       <button class="btn primary" id="go" type="submit">Guess</button>
     </form>
-    <div class="wrap" id="clue">
-      <div id="clueTxt"></div>
-      <button class="btn" id="hintBtn" type="button">Hint</button>
-    </div>
+    <div class="wrap" id="kb" role="group" aria-label="Keyboard"></div>
   </div>
-  <div id="board">
-    <svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Word web"></svg>
-    <div id="zoom">
-      <button class="btn" id="zin" type="button" aria-label="Zoom in">+</button>
-      <button class="btn" id="zout" type="button" aria-label="Zoom out">&minus;</button>
-      <button class="btn small" id="zfit" type="button" aria-label="Fit board to screen">Fit</button>
+</div>
+
+<div id="mapSheet" class="overlay" role="dialog" aria-modal="true" aria-label="Boards">
+  <div class="sheet">
+    <div class="row" style="justify-content: space-between;">
+      <h2>Boards</h2>
+      <button class="btn" id="closeMap" type="button">Close</button>
     </div>
-    <div id="soon"></div>
-    <div id="boards" aria-label="Boards"></div>
-    <div id="toast" role="status"></div>
+    <div id="boards" class="map"></div>
+    <p class="small">Boards sit side by side on one big map. Tap one to jump to it. Dashed squares are boards you haven't reached yet.</p>
   </div>
 </div>
 
@@ -209,7 +249,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
     </div>
     <p>Each orange box hides a word; the number is how many letters it has. Lines join related words, and a word sitting between two others connects them both. Find a word and its neighbours appear. The further you get from the middle, the further the words wander from the topic.</p>
     <p>Purple words sit on the edge of the board. Finding one opens a whole new board, which gives you another place to start when you're stuck.</p>
-    <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, then Letter as many times as you need. Each tap shows one more letter, all the way to the whole word. Drag to move around; pinch or use + and &minus; to zoom.</p>
+    <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, then Letter as many times as you need. Each tap shows one more letter, all the way to the whole word. Drag to move around and pinch to zoom. Boards shows a map of every board you've opened.</p>
     <div>
       <h3>Play together</h3>
       <p id="teamTxt" style="margin-bottom:8px"></p>
@@ -651,7 +691,16 @@ function createGame(world, saved) {
   let sel = null, fresh = new Set(), burst = null, newBoards = new Set();
   let vb = { x: -300, y: -300, w: 600, h: 600 };
   const svg = $("#svg"), boardEl = $("#board"), app = $("#app");
-  const guessEl = $("#guess"), goBtn = $("#go"), menu = $("#menu");
+  const guessEl = $("#guess"), goBtn = $("#go"), menu = $("#menu"), mapSheet = $("#mapSheet");
+  const OVER = "#menu, #invite, #mapSheet";
+  const overlayOpen = () => menu.classList.contains("open") || $("#invite").classList.contains("open") || mapSheet.classList.contains("open");
+  /* touch screens get our own keyboard; the phone's keyboard never opens */
+  const TOUCH = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+  if (TOUCH) {
+    document.body.classList.add("touch");
+    guessEl.readOnly = true; guessEl.setAttribute("inputmode", "none"); guessEl.tabIndex = -1;
+    guessEl.placeholder = "Tap the letters below";
+  }
   let team = null, soloState = null, teamFound = {}, teamHints = {}, firstSnap = true, pollTimer = null, lastState = "";
   const pending = new Set(), pendingHints = {};
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -721,15 +770,23 @@ function createGame(world, saved) {
   }
   function track() { const id = nearest(); if (id !== curId) { curId = id; persist(); renderBoards(); renderWhere(); renderSoon(); } }
   function renderBoards() {
-    const el = $("#boards"); let html = "";
-    game.boards.forEach(b => {
-      if (!game.isUnlocked(b)) return;
-      const p = game.progress(b);
-      html += `<button type="button" class="chip${b.id === curId ? " cur" : ""}${newBoards.has(b.id) ? " new" : ""}" data-board="${b.id}">${esc(b.title)} <small>${b.soon ? "soon" : p.done + "/" + p.of}${!b.soon && p.done === p.of ? " ★" : ""}</small></button>`;
-    });
-    const locked = game.boards.filter(b => !game.isUnlocked(b)).length;
-    if (locked) html += `<span class="chip lock" aria-label="${locked} boards not found yet">? <small>${locked} more</small></span>`;
-    el.innerHTML = html;
+    const open = game.boards.filter(b => game.isUnlocked(b));
+    const btn = $("#boardsBtn");
+    btn.textContent = `Boards ${open.length}/${game.boards.length}`;
+    btn.classList.toggle("new", newBoards.size > 0);
+    /* the map: every open board, plus a dashed square for each unopened board next to one */
+    const near = (a, b) => Math.abs(a.at[0] - b.at[0]) + Math.abs(a.at[1] - b.at[1]) === 1;
+    const shown = game.boards.filter(b => game.isUnlocked(b) || open.some(o => near(o, b)));
+    const xs = shown.map(b => b.at[0]), ys = shown.map(b => b.at[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const el = $("#boards");
+    el.style.gridTemplateColumns = `repeat(${x1 - x0 + 1}, minmax(0, 104px))`;
+    el.innerHTML = shown.map(b => {
+      const pos = `grid-column:${b.at[0] - x0 + 1};grid-row:${b.at[1] - y0 + 1}`;
+      if (!game.isUnlocked(b)) return `<div class="tile lock" style="${pos}" aria-label="A board you haven't reached yet">?</div>`;
+      const p = game.progress(b), done = !b.soon && p.done === p.of;
+      return `<button type="button" class="tile${b.id === curId ? " cur" : ""}${done ? " done" : ""}" style="${pos}" data-board="${b.id}">${esc(b.title)}<small>${b.soon ? "soon" : p.done + "/" + p.of}${done ? " ★" : ""}</small></button>`;
+    }).join("");
   }
   function letters(n) {
     const parts = n.show.split(" ").map(w => w.replace(/[^A-Za-z]/g, "").length);
@@ -738,6 +795,7 @@ function createGame(world, saved) {
   function renderClue() {
     const t = $("#clueTxt"), hb = $("#hintBtn");
     const n = sel ? nodeOf(sel) : null;
+    t.classList.remove("open");
     if (!n) { t.innerHTML = `<span class="muted">Tap a box for its length and a hint.</span>`; hb.textContent = "Hint"; hb.disabled = true; return; }
     const clue = game.clues[n.key] || "";
     if (game.solved[n.key]) {
@@ -750,14 +808,14 @@ function createGame(world, saved) {
     let h = `<b>${letters(n)}</b>`;
     const max = game.maxHint(n.key);
     if (tier >= 2) h += ` <span class="reveal">${esc(game.reveal(n.key, n.show)).replace(/_/g, "<i>_</i>")}</span>`;
-    if (tier >= 1) h += `<br>${esc(clue)}`;
+    if (tier >= 1) h += ` · ${esc(clue)}`;
     t.innerHTML = h;
     hb.textContent = tier === 0 ? "Hint" : tier >= max ? "Shown" : tier === max - 1 ? "Last letter" : "Letter";
     if (tier >= max) hb.disabled = true;
   }
   function renderWhere() {
     const p = game.progress(cur());
-    $("#where").innerHTML = `${esc(cur().title)} · <b>${game.count()}</b> found${team ? " · team " + esc(team) : ""}`;
+    $("#where").innerHTML = `${esc(cur().title)} <b>${p.done}/${p.of}</b>`;
   }
   function renderAll() { renderBoard(); renderBoards(); renderClue(); renderWhere(); }
 
@@ -768,7 +826,7 @@ function createGame(world, saved) {
     const b = id ? game.byId(id) : cur(), vis = game.visible(b), { W, H } = size();
     let x0 = b.hub.x - b.hub.w / 2, x1 = b.hub.x + b.hub.w / 2, y0 = b.hub.y - b.hub.h / 2, y1 = b.hub.y + b.hub.h / 2;
     b.nodes.forEach(n => { if (!vis.has(n.key)) return; x0 = Math.min(x0, n.x - n.w / 2); x1 = Math.max(x1, n.x + n.w / 2); y0 = Math.min(y0, n.y - n.h / 2); y1 = Math.max(y1, n.y + n.h / 2); });
-    const padX = 30, padTop = 20, padBottom = 70;
+    const padX = 30, padTop = 50, padBottom = 20;
     const s = Math.min(1.6, (W - 2 * padX - 50) / (x1 - x0), (H - padTop - padBottom) / (y1 - y0));
     vb.w = W / s; vb.h = H / s;
     vb.x = (x0 + x1) / 2 - vb.w / 2; vb.y = y0 - padTop / s - ((H - padTop - padBottom) / s - (y1 - y0)) / 2;
@@ -819,7 +877,7 @@ function createGame(world, saved) {
   function focusOn(key) {
     const n = nodeOf(key); if (!n) return;
     const { W, H } = size(), s0 = W / vb.w, s1 = Math.max(s0, Math.min(1.35, s0 * 1.6));
-    const usableH = H - 60, cx0 = vb.x + vb.w / 2, cy0 = vb.y + usableH / 2 * (vb.w / W);
+    const usableH = H, cx0 = vb.x + vb.w / 2, cy0 = vb.y + usableH / 2 * (vb.w / W);
     const t0 = performance.now(), dur = 280;
     cancelAnimationFrame(anim);
     const step = now => {
@@ -833,19 +891,23 @@ function createGame(world, saved) {
   if (window.ResizeObserver) new ResizeObserver(applyVB).observe(boardEl);
 
   function switchBoard(id) { curId = id; sel = null; fresh = new Set(); burst = null; fit(id); curId = id; persist(); renderAll(); }
-  $("#boards").addEventListener("click", e => { const b = e.target.closest("[data-board]"); if (b) switchBoard(b.getAttribute("data-board")); });
-  $("#zin").addEventListener("click", () => zoomBy(1.3));
-  $("#zout").addEventListener("click", () => zoomBy(1 / 1.3));
-  $("#zfit").addEventListener("click", fit);
+  const closeMap = () => { mapSheet.classList.remove("open"); keepFocus(); };
+  $("#boards").addEventListener("click", e => { const b = e.target.closest("[data-board]"); if (!b) return; mapSheet.classList.remove("open"); switchBoard(b.getAttribute("data-board")); keepFocus(); });
+  $("#boardsBtn").addEventListener("click", () => { newBoards = new Set(); renderBoards(); mapSheet.classList.add("open"); });
+  $("#closeMap").addEventListener("click", closeMap);
+  mapSheet.addEventListener("click", e => { if (e.target === mapSheet) closeMap(); });
+  $("#zfit").addEventListener("click", () => fit());
+  $("#clueTxt").addEventListener("click", e => e.currentTarget.classList.toggle("open"));
   document.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b || b.disabled) return;
     b.classList.add("is-pressed"); setTimeout(() => b.classList.remove("is-pressed"), 260);
   }, true);
   /* the word box keeps focus: buttons outside the menu don't take it, and anything that does gives it straight back */
-  const keepFocus = () => { if (!menu.classList.contains("open") && !$("#invite").classList.contains("open")) { try { guessEl.focus({ preventScroll: true }); } catch (_) { guessEl.focus(); } } };
-  document.addEventListener("mousedown", e => { if (!e.target.closest("#menu, #invite") && e.target !== guessEl && e.target.closest("button, .chip, #board")) e.preventDefault(); });
-  document.addEventListener("click", e => { if (!e.target.closest("#menu, #invite")) setTimeout(keepFocus, 0); });
-  guessEl.addEventListener("blur", () => setTimeout(() => { const a = document.activeElement; if (!a || a === document.body || (a.closest && !a.closest("#menu, #invite"))) keepFocus(); }, 0));
+  /* (touch screens don't need this: the on-screen keyboard types straight into the word box) */
+  const keepFocus = () => { if (TOUCH || overlayOpen()) return; try { guessEl.focus({ preventScroll: true }); } catch (_) { guessEl.focus(); } };
+  document.addEventListener("mousedown", e => { if (!e.target.closest(OVER) && e.target !== guessEl && e.target.closest("button, .chip, .key, #board, #clueTxt")) e.preventDefault(); });
+  document.addEventListener("click", e => { if (!e.target.closest(OVER)) setTimeout(keepFocus, 0); });
+  guessEl.addEventListener("blur", () => setTimeout(() => { const a = document.activeElement; if (!a || a === document.body || (a.closest && !a.closest(OVER))) keepFocus(); }, 0));
 
   $("#hintBtn").addEventListener("click", () => {
     if (!sel) return;
@@ -853,10 +915,13 @@ function createGame(world, saved) {
     game.hint(sel); persist(); shareHint(sel); renderBoard(); renderClue();
   });
 
-  function flashGo(txt, cls) { goBtn.textContent = txt; goBtn.classList.add(cls); setTimeout(() => { goBtn.textContent = "Guess"; goBtn.classList.remove(cls); }, 800); }
+  function flashGo(txt, cls) {
+    goBtn.textContent = txt; goBtn.classList.add(cls); setTimeout(() => { goBtn.textContent = "Guess"; goBtn.classList.remove(cls); }, 800);
+    const ek = $("#kb .enter"); if (ek) { ek.textContent = txt; ek.classList.add(cls); setTimeout(() => { ek.textContent = "Enter"; ek.classList.remove(cls); }, 800); }
+  }
   function shakeInput() { guessEl.classList.remove("shake"); void guessEl.offsetWidth; guessEl.classList.add("shake"); }
-  $("#guessbar").addEventListener("submit", e => {
-    e.preventDefault();
+  $("#guessbar").addEventListener("submit", e => { e.preventDefault(); submitGuess(); });
+  function submitGuess() {
     const res = game.guess(guessEl.value);
     if (res.r === "empty") { shakeInput(); return; }
     guessEl.value = "";
@@ -866,15 +931,49 @@ function createGame(world, saved) {
     flashGo("✓", "good"); persist(); shareFound(res.key);
     const f = [].concat(...Object.values(res.fresh)), here = true;
     fresh = new Set(f); burst = res.key; if (sel === res.key) sel = null;
-    newBoards = new Set(res.unlocked);
+    res.unlocked.forEach(id => newBoards.add(id)); /* the Boards button stays lit until you open the map */
     const shown = game.boards.find(b => b.byKey[res.key]).byKey[res.key].show;
     if (res.fuzzy) toast(`Close enough: “${shown}”`);
     res.unlocked.forEach(id => toast(`New board: ${titleOf(id)}`));
     res.completed.forEach(id => toast(`${titleOf(id)} complete ★`));
     renderAll();
-    const off = f.some(k => { const n = nodeOf(k); return n && (n.x - n.w / 2 < vb.x || n.x + n.w / 2 > vb.x + vb.w || n.y - n.h / 2 < vb.y || n.y + n.h / 2 > vb.y + vb.h - 60); });
+    const off = f.some(k => { const n = nodeOf(k); return n && (n.x - n.w / 2 < vb.x || n.x + n.w / 2 > vb.x + vb.w || n.y - n.h / 2 < vb.y || n.y + n.h / 2 > vb.y + vb.h); });
     if (off) fit(curId);
-    setTimeout(() => { burst = null; newBoards = new Set(); fresh = new Set(); renderBoard(); renderBoards(); }, 1000);
+    setTimeout(() => { burst = null; fresh = new Set(); renderBoard(); }, 1000);
+  }
+
+  /* ---------- on-screen keyboard ---------- */
+  const ROWS = ["qwertyuiop", "asdfghjkl", "<zxcvbnm>"];
+  $("#kb").innerHTML = ROWS.map((r, i) => `<div class="krow${i === 1 ? " mid" : ""}">` + r.split("").map(c =>
+    c === "<" ? `<button type="button" class="key wide" data-key="back" aria-label="Delete">&#9003;</button>`
+    : c === ">" ? `<button type="button" class="key wide enter" data-key="enter">Enter</button>`
+    : `<button type="button" class="key" data-key="${c}">${c.toUpperCase()}</button>`).join("") + "</div>").join("");
+  function press(k) {
+    if (k === "enter") { submitGuess(); return; }
+    if (k === "back") { guessEl.value = guessEl.value.slice(0, -1); return; }
+    if (guessEl.value.length < 30) guessEl.value += k;
+  }
+  let repeat = null;
+  const stopRepeat = () => { clearTimeout(repeat); repeat = null; };
+  const kb = $("#kb");
+  kb.addEventListener("pointerdown", e => {
+    const b = e.target.closest(".key"); if (!b) return;
+    e.preventDefault();
+    const k = b.dataset.key; b.classList.add("down");
+    press(k);
+    if (k === "back") { const go = d => { repeat = setTimeout(() => { press("back"); go(70); }, d); }; go(420); }
+  });
+  const lift = () => { stopRepeat(); kb.querySelectorAll(".key.down").forEach(b => setTimeout(() => b.classList.remove("down"), 90)); };
+  ["pointerup", "pointercancel", "pointerleave"].forEach(t => kb.addEventListener(t, lift));
+  kb.addEventListener("click", e => { const b = e.target.closest(".key"); if (b && e.detail === 0) press(b.dataset.key); }); /* keyboard / switch access */
+  kb.addEventListener("contextmenu", e => e.preventDefault());
+  /* a hardware keyboard still works on a touch screen (iPad with a keyboard, for example) */
+  if (TOUCH) document.addEventListener("keydown", e => {
+    if (overlayOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target; if (t && t !== guessEl && /^(INPUT|TEXTAREA)$/.test(t.tagName)) return;
+    if (e.key === "Enter") { e.preventDefault(); press("enter"); }
+    else if (e.key === "Backspace") { e.preventDefault(); press("back"); }
+    else if (/^[a-z]$/i.test(e.key)) { e.preventDefault(); press(e.key.toLowerCase()); }
   });
 
   /* menu */
@@ -977,7 +1076,7 @@ function createGame(world, saved) {
     const nameIn = document.createElement("input"); nameIn.id = "myName"; nameIn.maxLength = 20; nameIn.placeholder = "Your name"; nameIn.value = myName; nameIn.autocomplete = "off"; nameIn.setAttribute("aria-label", "Your name");
     nameIn.addEventListener("change", () => saveName(nameIn.value));
     if (team) {
-      $("#inviteBtn").hidden = false;
+      $("#inviteBtn").hidden = false; $("#inviteBtn").textContent = team;
       txt.innerHTML = `You're playing team game <span class="code">${esc(team)}</span>. Everyone on this team sees the same words, live. <span id="teamStatus" class="muted"></span>`;
       row.appendChild(nameIn);
       mk("Invite people", openInvite, "primary");
@@ -1118,7 +1217,7 @@ function createGame(world, saved) {
     else if (saved) joinTeam(saved);
   }
 
-  renderAll(); fitScreen();
+  renderAll(); fitScreen(); keepFocus();
   requestAnimationFrame(() => { const id = curId; fitScreen(); fit(id); curId = id; renderAll(); });
 })();
 </script>
