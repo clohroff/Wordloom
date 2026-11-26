@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>Wordloom</title>
+<title>Tangents</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
@@ -141,7 +141,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 <div id="app">
   <div id="top">
     <div class="wrap" id="bar">
-      <h1>Wordloom</h1>
+      <h1>Tangents</h1>
       <div id="where" aria-live="polite"></div>
       <button class="btn primary" id="inviteBtn" type="button" hidden>Invite</button>
       <button class="btn" id="menuBtn" type="button">Menu</button>
@@ -193,7 +193,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
           <a class="btn linkbtn" id="mailLink" href="#" target="_blank" rel="noopener">Email</a>
           <a class="btn linkbtn" id="waLink" href="#" target="_blank" rel="noopener">WhatsApp</a>
         </div>
-        <p class="small">Or they can open Wordloom and type the code <b id="invCode2"></b> in Menu → Play together.</p>
+        <p class="small">Or they can open Tangents and type the code <b id="invCode2"></b> in Menu → Play together.</p>
       </div>
     </div>
   </div>
@@ -910,10 +910,10 @@ function createGame(world, saved) {
   }
   function openInvite() {
     if (!team) return;
-    const link = teamLink(team), msg = `Join my Wordloom team game (code ${team}): ${link}`;
+    const link = teamLink(team), msg = `Join my Tangents team game (code ${team}): ${link}`;
     $("#invCode").textContent = team; $("#invCode2").textContent = team; $("#invLink").value = link;
     $("#smsLink").href = "sms:?&body=" + encodeURIComponent(msg);
-    $("#mailLink").href = "mailto:?subject=" + encodeURIComponent("Join my Wordloom team") + "&body=" + encodeURIComponent(msg);
+    $("#mailLink").href = "mailto:?subject=" + encodeURIComponent("Join my Tangents team") + "&body=" + encodeURIComponent(msg);
     $("#waLink").href = "https://wa.me/?text=" + encodeURIComponent(msg);
     $("#nativeShare").hidden = !navigator.share;
     drawQR(link);
@@ -930,7 +930,7 @@ function createGame(world, saved) {
   });
   $("#nativeShare").addEventListener("click", e => {
     const b = e.currentTarget; b.textContent = "Opening…";
-    Promise.resolve().then(() => navigator.share({ title: "Wordloom team " + team, text: `Join my Wordloom team game (code ${team})`, url: teamLink(team) }))
+    Promise.resolve().then(() => navigator.share({ title: "Tangents team " + team, text: `Join my Tangents team game (code ${team})`, url: teamLink(team) }))
       .then(() => { b.textContent = "Shared ✓"; }, () => { b.textContent = "Not available here"; b.disabled = true; })
       .finally(() => setTimeout(() => { b.textContent = "Share…"; }, 1800));
   });
