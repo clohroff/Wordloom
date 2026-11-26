@@ -60,6 +60,8 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 #clueTxt b { font-family: var(--display); font-weight: 600; font-size: 15px; }
 #clueTxt .muted { color: var(--muted); }
 #hintBtn { height: 38px; }
+.reveal { font-family: ui-monospace, Menlo, monospace; letter-spacing: 2px; font-weight: 700; }
+.reveal i { font-style: normal; opacity: .45; }
 
 /* board */
 #board { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none;
@@ -207,7 +209,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
     </div>
     <p>Each orange box hides a word; the number is how many letters it has. Lines join related words, and a word sitting between two others connects them both. Find a word and its neighbours appear. The further you get from the middle, the further the words wander from the topic.</p>
     <p>Purple words sit on the edge of the board. Finding one opens a whole new board, which gives you another place to start when you're stuck.</p>
-    <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, and Hint again for the first letter. Drag to move around; pinch or use + and &minus; to zoom.</p>
+    <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, then Letter as many times as you need. Each tap shows one more letter, all the way to the whole word. Drag to move around; pinch or use + and &minus; to zoom.</p>
     <div>
       <h3>Play together</h3>
       <p id="teamTxt" style="margin-bottom:8px"></p>
@@ -291,7 +293,7 @@ bat<Dracula+vampire|Flying mammal that hangs upside down@303.4,440
 full moon<werewolf|What makes him change@323.2,318
 lightning<Frankenstein|Bolt that brought the creature to life@29.3,440
 bolts<Frankenstein|Metal pieces in the creature's neck@42.4,440
-pyramid<mummy|Huge stone tomb in the desert@90.1,347
+pyramid<mummy|Huge stone tomb with four triangular sides@90.1,347
 brains<zombie|What the undead want to eat@135.2,290
 UFO<Alien|Unidentified thing in the sky@178.1,354
 snow<Yeti|White stuff covering the Himalayas@222.4,347
@@ -306,7 +308,7 @@ calamari<tentacles|Fried squid rings@263.9,440
 ` },
 { id: "movies", title: "Movies", at: [0, -1], words: `
 Star Wars<hub|A long time ago, in a galaxy far, far away@0.0,225
-Marvel<hub|Comic book studio behind the Thor and Hulk films@55.0,225
+Marvel<hub|Comic book studio behind the Thor and Captain America films@55.0,225
 Oscar<hub|Golden award for the best film@105.0,220
 popcorn<hub|Snack that pops at the cinema@150.0,225
 comedy<hub|Funny film genre@205.0,225
@@ -314,7 +316,7 @@ sequel<hub|Part two@255.0,220
 theater<hub|Where films are shown on the big screen@305.0,225
 Ghostbusters<comedy+sequel|
 Jedi<Star Wars|Knight who uses the Force@16.4,290
-Death Star<Star Wars|Moon-sized space station that destroys planets@352.8,290
+Death Star<Star Wars|Armored space station that can blow up whole worlds@352.8,290
 Iron Man<Marvel|Tony Stark in a metal suit@75.5,334
 statue<Oscar|What the award actually is@89.1,290
 trash can<Oscar|Where the Grouch lives@115.9,332
@@ -354,19 +356,107 @@ lamp<genie|Rub it and out he comes@123.7,440
 Quidditch<broom|Wizard sport played in the air@248.4,440
 iPhone<poison apple+selfie|Phone with a bitten-fruit logo@284.4,440
 ` },
-{ id: "superheroes", title: "Superheroes", at: [1, -1], soon: true, words: `
+{ id: "superheroes", title: "Superheroes", at: [1, -1], words: `
+Batman<hub|Dark Knight who guards Gotham@20.0,225
+Superman<hub|Man of Steel from Krypton@65.0,225
+Spider-Man<hub|Friendly neighborhood wall-crawler@110.0,230
+Hulk<hub|Big green rage machine@140.0,225
+Wonder Woman<hub|Amazon warrior with silver bracelets@210.0,225
+cape<hub|Flows behind a hero's shoulders@245.0,220
+villain<hub|The bad guy of the story@320.0,225
+sidekick<hub|Young helper who tags along@352.0,225
 Flash<hub|
 Avengers<hub|
+Robin<sidekick+Batman|The Boy Wonder@357.7,290
+Joker<Batman+villain|Grinning clown who torments Gotham@358.7,433
+Clark Kent<Superman|Mild-mannered disguise with glasses@83.3,357
+kryptonite<Superman|Green rock that drains his powers@92.4,290
+web<Spider-Man|Sticky silk he swings on@119.6,362
+Daily Bugle<Spider-Man|New York tabloid where Peter Parker sells photos@100.5,379
+lasso<Wonder Woman|Golden rope that makes you tell the truth@202.5,340
+smash<Hulk|What he loves to do, in his own words@136.7,372
+lair<villain|Secret hideout, often inside a volcano@322.5,290
+reporter<Clark Kent+Daily Bugle|Journalist chasing the story@92.2,440
+duck<web|Quacking pond bird whose toes are joined by skin@122.1,440
+cowboy<lasso|Rides the range and ropes cattle@203.6,440
+wild card<Joker|Stands in for any other card in the deck@1.6,487
+Cape Cod<cape|Massachusetts peninsula shaped like a flexed arm@240.6,298
+tennis<smash|Racket sport where an overhead shot can win the point@138.5,440
 ` },
-{ id: "space", title: "Space", at: [1, 1], soon: true, words: `
+{ id: "space", title: "Space", at: [1, 1], words: `
+rocket<hub|Blasts off on a column of fire@110.0,225
+astronaut<hub|Person trained to fly beyond the sky@190.0,230
+Moon<hub|What the cow jumped over@150.0,225
+Mars<hub|The red planet@220.0,215
+Saturn<hub|Ringed sixth world from the Sun@285.0,225
+comet<hub|Icy visitor with a glowing tail@320.0,220
+telescope<hub|Tube for seeing faraway things up close@75.0,225
+black hole<hub|Not even light can get out of it@40.0,225
 flying saucer<hub|
 shooting star<hub|
+launch<rocket|Liftoff after the countdown@115.6,307
+spacesuit<astronaut|Pressurized outfit for a walk outside the ship@197.0,290
+crater<Moon|Bowl-shaped dent left by an impact@136.8,332
+rover<Mars|Wheeled robot exploring the dusty surface@220.3,290
+Titan<Saturn|Largest of its satellites, bigger than Mercury@286.1,334
+gravity<black hole|Pull that keeps your feet on the ground@57.9,326
+reindeer<comet|Santa's team includes one with this name@322.4,327
+Hubble<telescope|Observatory sent into orbit in 1990@88.7,290
+Apollo<Moon+rocket|NASA program that first put people on another world@130.8,290
+Neil Armstrong<astronaut+Moon|First person to step onto its surface, 1969@164.7,291
+Newton<gravity+telescope|Apple-inspired physicist who built a reflecting scope@65.6,290
+Titanic<Titan|Ship that sank after hitting an iceberg in 1912@282.4,440
+sleigh<reindeer|Santa's ride across the rooftops@321.9,440
 ` },
-{ id: "egypt", title: "Ancient Egypt", at: [2, 0], soon: true, words: `
+{ id: "egypt", title: "Ancient Egypt", at: [2, 0], words: `
+Nile<hub|World's longest river@0.0,220
+pharaoh<hub|Ruler of the ancient kingdom@40.0,225
+hieroglyphics<hub|Picture writing on temple walls@118.0,235
+Cleopatra<hub|Last queen of the ancient kingdom@155.0,230
+scarab<hub|Sacred dung-rolling bug charm@195.0,220
+camel<hub|Long-legged ride across the dunes@295.0,220
+desert<hub|Hot, dry, sandy place@325.0,220
+papyrus<hub|Reed that grows along the riverbanks@80.0,225
 Sphinx<hub|
+crocodile<Nile|Toothy reptile basking on the bank@8.5,290
+King Tut<pharaoh|Boy king whose golden tomb was found in 1922@38.4,290
+Rosetta Stone<hieroglyphics|Slab that cracked the code, now in London@122.9,318
+Mark Antony<Cleopatra|Roman general she loved@155.3,290
+beetle<scarab|Insect with a hard shell@194.7,341
+hump<camel|Fat-storing lump on its back@289.1,309
+oasis<desert|Green spot with water and palms@343.0,297
+dessert<desert|Sweet course, spelled with one more S@322.6,290
+caravan<camel+desert|Line of travelers crossing the dunes@303.0,290
+scribe<hieroglyphics+papyrus|Writer who recorded everything for the court@98.5,290
+language<Rosetta Stone|What its software teaches@126.1,440
+Beatles<beetle|Fab Four from Liverpool@196.5,440
+Wednesday<hump|The day in the middle of the work week@288.8,440
+minivan<caravan|Family car with sliding doors@305.2,440
 ` },
-{ id: "sports", title: "Sports", at: [-1, -1], soon: true, words: `
+{ id: "sports", title: "Sports", at: [-1, -1], words: `
+baseball<hub|America's pastime@15.0,225
+basketball<hub|Five a side, shooting at a ten-foot rim@55.0,230
+boxing<hub|Sport of jabs and uppercuts@140.0,225
+golf<hub|Eighteen holes with clubs@185.0,220
+hockey<hub|Played on ice with sticks@230.0,225
+soccer<hub|The world's game, played with a round ball and no hands@270.0,225
+football<hub|Gridiron game with an oval ball@310.0,225
+Olympics<hub|Games held every four years@345.0,225
 Rocky<hub|
+home run<baseball|Ball hit over the outfield wall@24.3,296
+diamond<baseball|Shape of the infield@6.1,388
+slam dunk<basketball|Jam it through the rim@70.3,367
+gloves<boxing|Padded mitts for the ring@139.9,312
+hole in one<golf|Ace on a par three@185.1,290
+puck<hockey|Hard rubber disc@232.0,329
+goalie<soccer+hockey|Last line of defense in front of the net@252.9,290
+touchdown<football|Worth six points@313.1,290
+gold medal<Olympics|First-place prize@345.2,290
+Michael Jordan<basketball+baseball|Bulls legend who also tried the minor leagues@48.9,290
+Sweet Caroline<diamond|Neil's hit that Red Sox fans sing@8.0,440
+doughnut<slam dunk|Ring-shaped treat you dip in coffee@66.5,440
+oven mitt<gloves|Kitchen hand protector for hot pans@138.0,440
+Shakespeare<puck|Playwright who named a mischievous fairy after it@233.1,440
 ` }
 ] };
 
@@ -430,10 +520,13 @@ function createGame(world, saved) {
   layoutWorld(boards);
   const alias = {}, keys = new Set(), homes = {};
   boards.forEach(b => b.nodes.forEach(n => { keys.add(n.key); n.forms.forEach(f => { alias[f] = n.key; }); (homes[n.key] = homes[n.key] || []).push(b.id); }));
-  const solved = {}, hints = {};
+  const solved = {}, hints = {}, top = {};
+  /* hint tiers: 1 = clue, then one more letter per tier until the whole word shows */
+  boards.forEach(b => b.nodes.forEach(n => { top[n.key] = 1 + n.show.replace(/[^A-Za-z]/g, "").length; }));
+  const cap = (k, t) => Math.max(0, Math.min(top[k], t | 0));
   const load = o => {
     if (o && Array.isArray(o.s)) o.s.forEach(k => { if (keys.has(k)) solved[k] = true; });
-    if (o && o.h) Object.keys(o.h).forEach(k => { if (keys.has(k)) hints[k] = Math.min(2, o.h[k] | 0); });
+    if (o && o.h) Object.keys(o.h).forEach(k => { if (keys.has(k)) hints[k] = cap(k, o.h[k]); });
   };
   load(saved);
   const g = { boards, clues, solved, hints, total: keys.size, fuzzy: true };
@@ -521,14 +614,17 @@ function createGame(world, saved) {
     });
     return { r: "ok", key, fuzzy: m.fuzzy, fresh, unlocked, completed, found: live.map(b => b.id) };
   };
-  g.hint = key => { if (solved[key]) return 2; hints[key] = Math.min(2, (hints[key] || 0) + 1); return hints[key]; };
+  g.hint = key => { if (solved[key]) return top[key]; hints[key] = cap(key, (hints[key] || 0) + 1); return hints[key]; };
+  g.maxHint = key => top[key];
+  /* the word with its first (tier - 1) letters shown, the rest as blanks; spaces kept */
+  g.reveal = (key, show) => { let left = Math.max(0, (hints[key] || 0) - 1); return show.split("").map(c => /[A-Za-z]/.test(c) ? (left-- > 0 ? c.toUpperCase() : "_") : c).join(""); };
   g.count = () => Object.keys(solved).length;
   g.snapshot = () => ({ s: Object.keys(solved), h: Object.assign({}, hints) });
   /* replace the whole state, e.g. with a team's shared progress */
   g.setState = (foundKeys, hintMap) => {
     Object.keys(solved).forEach(k => delete solved[k]); Object.keys(hints).forEach(k => delete hints[k]);
     foundKeys.forEach(k => { if (keys.has(k)) solved[k] = true; });
-    Object.keys(hintMap || {}).forEach(k => { if (keys.has(k)) hints[k] = Math.min(2, hintMap[k] | 0); });
+    Object.keys(hintMap || {}).forEach(k => { if (keys.has(k)) hints[k] = cap(k, hintMap[k]); });
   };
   g.reset = () => { Object.keys(solved).forEach(k => delete solved[k]); Object.keys(hints).forEach(k => delete hints[k]); };
   g.exportCode = () => "WL2:" + btoa(JSON.stringify(g.snapshot()));
@@ -583,7 +679,9 @@ function createGame(world, saved) {
   const counts = n => n.show.split(" ").map(w => w.replace(/[^A-Za-z]/g, "").length).join(" + ");
   function label(n) {
     if (game.solved[n.key]) return n.show;
-    if ((game.hints[n.key] || 0) >= 2) return n.show[0].toUpperCase() + " · " + counts(n);
+    const t = game.hints[n.key] || 0;
+    if (t >= game.maxHint(n.key)) return n.show.toUpperCase();
+    if (t >= 2) return game.reveal(n.key, n.show).replace(/[_ ]+$/, "").replace(/_.*$/, "") + " · " + counts(n);
     return counts(n);
   }
   const nodeOf = key => { for (const b of game.boards) if (b.byKey[key]) return b.byKey[key]; return null; };
@@ -650,11 +748,12 @@ function createGame(world, saved) {
     hb.disabled = false;
     const tier = game.hints[n.key] || 0;
     let h = `<b>${letters(n)}</b>`;
-    if (tier >= 2) h += ` <span class="muted">· starts with ${esc(n.show[0].toUpperCase())}</span>`;
+    const max = game.maxHint(n.key);
+    if (tier >= 2) h += ` <span class="reveal">${esc(game.reveal(n.key, n.show)).replace(/_/g, "<i>_</i>")}</span>`;
     if (tier >= 1) h += `<br>${esc(clue)}`;
     t.innerHTML = h;
-    hb.textContent = tier === 0 ? "Hint" : tier === 1 ? "Letter" : "No more";
-    if (tier >= 2) hb.disabled = true;
+    hb.textContent = tier === 0 ? "Hint" : tier >= max ? "Shown" : tier === max - 1 ? "Last letter" : "Letter";
+    if (tier >= max) hb.disabled = true;
   }
   function renderWhere() {
     const p = game.progress(cur());
