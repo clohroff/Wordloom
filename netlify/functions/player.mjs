@@ -13,7 +13,7 @@ const clean = (state) => {
   const s = [...new Set((Array.isArray(state && state.s) ? state.s : []).map(String).filter((w) => WORD.test(w)))].slice(0, 5000);
   const h = {};
   const hs = (state && state.h) || {};
-  Object.keys(hs).forEach((k) => { if (WORD.test(k)) h[k] = Math.max(0, Math.min(2, Number(hs[k]) || 0)); });
+  Object.keys(hs).forEach((k) => { if (WORD.test(k)) h[k] = Math.max(0, Math.min(60, Number(hs[k]) || 0)); });
   return { s, h };
 };
 

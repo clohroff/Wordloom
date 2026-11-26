@@ -1,4 +1,4 @@
-// Team progress for Wordloom.
+// Team progress for Tangents.
 // Every find is its own key: CODE/f/<word>/<finder name>, every hint: CODE/h/<word>/<tier>.
 // Writes never touch another player's key, so simultaneous finds can't overwrite each other,
 // and one prefix listing returns a whole team's state without reading any values.
@@ -26,7 +26,7 @@ export default async (req) => {
         try { name = decodeURIComponent(extra || ""); } catch (e) {}
         found[word] = name;
       }
-      if (kind === "h") hints[word] = Math.max(hints[word] || 0, Math.min(2, Number(extra) || 0));
+      if (kind === "h") hints[word] = Math.max(hints[word] || 0, Math.min(60, Number(extra) || 0));
     }
     return json({ found, hints });
   }
@@ -43,7 +43,7 @@ export default async (req) => {
       return json({ ok: true });
     }
     if (body.type === "hint") {
-      const tier = Math.min(2, Math.max(1, Number(body.tier) || 1));
+      const tier = Math.min(60, Math.max(1, Number(body.tier) || 1));
       await store.set(`${code}/h/${word}/${tier}`, String(Date.now()));
       return json({ ok: true });
     }
