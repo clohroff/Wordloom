@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Wordloom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: the whole app is one fixed frame the size of the visible screen. Controls live in a panel pinned at the top,
+   so the phone keyboard (which opens from the bottom) never pushes them away. The board fills everything below. */
+:root {
+  --bg: #e8eef3; --panel: #ffffff; --ink: #16202a; --muted: #5a6b7c; --line: #d2dbe4; --line-strong: #9eb0c1;
+  --accent: #1f6f5c; --accent-ink: #ffffff;
+  --hidden: #f2b63f; --hidden-edge: #b07a12; --hidden-ink: #4a3000;
+  --good: #66c27a; --good-edge: #2c8a43; --good-ink: #0b3016;
+  --exit: #8d6cf0; --exit-edge: #5b3fc4; --exit-ink: #ffffff;
+  --bad: #d4473f;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d141b; --panel: #15202b; --ink: #e9eff5; --muted: #93a5b7; --line: #243443; --line-strong: #4b6177;
+  --accent: #4cc3a2; --accent-ink: #062019; --hidden: #e6a93b; --hidden-edge: #a8740d; --good: #52b96b; --good-edge: #8fe3a3;
+  --exit: #9f86ff; --exit-edge: #cbbdff; --exit-ink: #160a3a; --bad: #ff7a70; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d141b; --panel: #15202b; --ink: #e9eff5; --muted: #93a5b7; --line: #243443; --line-strong: #4b6177;
+  --accent: #4cc3a2; --accent-ink: #062019; --hidden: #e6a93b; --hidden-edge: #a8740d; --good: #52b96b; --good-edge: #8fe3a3;
+  --exit: #9f86ff; --exit-edge: #cbbdff; --exit-ink: #160a3a; --bad: #ff7a70; color-scheme: dark; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); }
+#app { position: fixed; left: 0; right: 0; top: 0; height: 100%; display: flex; flex-direction: column; }
+
+/* top panel */
+#top { flex: none; background: var(--panel); border-bottom: 2px solid var(--line); padding: calc(8px + env(safe-area-inset-top)) 12px 10px; display: flex; flex-direction: column; gap: 8px; z-index: 5; }
+.wrap { width: 100%; max-width: 760px; margin: 0 auto; }
+#bar { display: flex; align-items: center; gap: 10px; }
+#bar h1 { font-family: var(--display); font-size: 20px; margin: 0; white-space: nowrap; }
+#where { font-weight: 800; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; font-variant-numeric: tabular-nums; }
+#where b { color: var(--ink); }
+.btn { font-family: var(--body); font-weight: 800; font-size: 15px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
+  border-radius: 10px; padding: 0 14px; height: 42px; cursor: pointer; flex: none; transition: transform .08s, background-color .12s, border-color .12s, color .12s; }
+.btn:hover { border-color: var(--ink); }
+.btn:active, .btn.is-pressed { transform: scale(.94); background: var(--line); border-color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:active, .btn.primary.is-pressed { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.btn.good { background: var(--good); border-color: var(--good-edge); color: var(--good-ink); }
+.btn.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn[disabled] { opacity: .45; cursor: default; }
+.btn:focus-visible, input:focus-visible, textarea:focus-visible, .chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+#guessbar { display: flex; gap: 8px; }
+#guess { flex: 1; min-width: 0; height: 46px; font-family: var(--body); font-size: 18px; font-weight: 800; padding: 0 14px; border-radius: 12px;
+  border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+#guess::placeholder { color: var(--muted); font-weight: 700; }
+#go { height: 46px; min-width: 86px; font-size: 16px; }
+#clue { display: flex; align-items: center; gap: 10px; height: 46px; }
+#clueTxt { flex: 1; min-width: 0; font-size: 14px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#clueTxt b { font-family: var(--display); font-weight: 600; font-size: 15px; }
+#clueTxt .muted { color: var(--muted); }
+#hintBtn { height: 38px; }
+
+/* board */
+#board { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none;
+  background-image: radial-gradient(var(--line) 1.2px, transparent 1.4px); background-size: 24px 24px; }
+#svg { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-select: none; }
+.edge { stroke: var(--line-strong); stroke-width: 2; }
+.edge.solved { stroke: var(--good-edge); stroke-width: 2.5; }
+.node { cursor: pointer; transform-box: fill-box; transform-origin: center; }
+.node rect { fill: var(--hidden); stroke: var(--hidden-edge); stroke-width: 2; }
+.node text { font-family: var(--body); font-weight: 800; font-size: 17px; fill: var(--hidden-ink); text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; pointer-events: none; }
+.node.solved rect { fill: var(--good); stroke: var(--good-edge); }
+.node.solved text { font-size: 15px; fill: var(--good-ink); }
+.node.exit.solved rect { fill: var(--exit); stroke: var(--exit-edge); }
+.node.exit.solved text { fill: var(--exit-ink); }
+.node.exit:not(.solved) rect { stroke-dasharray: 5 3; }
+.node.sel rect { stroke: var(--ink); stroke-width: 4; }
+.node.pop { animation: pop .5s cubic-bezier(.2, 1.5, .4, 1); }
+.hub rect { fill: var(--accent); stroke: var(--accent); }
+.hub text { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: .2px; fill: var(--accent-ink); }
+.star { font-size: 18px; fill: #f6b400; text-anchor: middle; dominant-baseline: central; animation: burst .9s ease-out forwards; pointer-events: none; }
+@keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes burst { 0% { transform: rotate(var(--a)) translateX(10px); opacity: 1; } 100% { transform: rotate(var(--a)) translateX(64px); opacity: 0; } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
+.shake { animation: shake .3s; }
+#zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+#zoom .btn { width: 42px; padding: 0; font-size: 20px; }
+#zoom .btn.small { font-size: 13px; }
+#boards { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+#boards::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 38px; border-radius: 19px; padding: 0 14px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
+  font-family: var(--body); font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform .08s, background-color .12s; }
+.chip small { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
+.chip.cur { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip.cur small { color: var(--accent-ink); }
+.chip.lock { border-style: dashed; color: var(--muted); background: transparent; cursor: default; }
+.chip.new { animation: pop .6s cubic-bezier(.2, 1.5, .4, 1); }
+.chip:active, .chip.is-pressed { transform: scale(.94); }
+#toast { position: absolute; left: 50%; bottom: calc(62px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: calc(100% - 80px); z-index: 3;
+  background: var(--ink); color: var(--panel); padding: 9px 14px; border-radius: 12px; font-weight: 800; font-size: 14px; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .18s; }
+#toast.show { opacity: 1; }
+#soon { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: var(--panel); border: 2px dashed var(--exit-edge); color: var(--ink);
+  border-radius: 12px; padding: 8px 14px; font-weight: 800; font-size: 14px; display: none; text-align: center; max-width: calc(100% - 24px); }
+
+/* menu */
+#menu, .overlay { position: fixed; inset: 0; z-index: 10; background: rgba(8, 14, 20, .55); display: none; align-items: flex-end; justify-content: center; }
+#menu.open, .overlay.open { display: flex; }
+.invgrid { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; }
+@media (max-width: 520px) { .invgrid { grid-template-columns: 1fr; } }
+.qrbox { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+#qr { background: #fff; padding: 12px; border-radius: 14px; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
+#qr svg { width: 100%; height: 100%; display: block; }
+.remote { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#invLink { width: 100%; height: 44px; font-family: var(--body); font-size: 15px; font-weight: 700; padding: 0 12px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+.linkbtn { display: inline-flex; align-items: center; text-decoration: none; }
+.sheet .small { font-size: 13px; }
+.sheet { background: var(--panel); width: 100%; max-width: 560px; max-height: 90%; overflow: auto; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 16px; border: 2px solid var(--line-strong); }
+.sheet h2 { font-family: var(--display); font-size: 20px; margin: 0; }
+.sheet h3 { font-family: var(--display); font-size: 16px; margin: 0 0 6px; }
+.sheet p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; max-width: 65ch; }
+.sheet textarea { width: 100%; height: 60px; resize: none; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 16px; padding: 8px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toggle { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; cursor: pointer; min-height: 40px; }
+.toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+#myName { width: 150px; height: 42px; font-family: var(--body); font-weight: 800; font-size: 16px; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+#teamCode { width: 120px; height: 42px; font-family: var(--body); font-weight: 800; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+.code { font-family: var(--display); font-size: 26px; letter-spacing: 3px; color: var(--ink); }
+.btn.busy { opacity: .7; }
+@media (min-width: 700px) { #menu, .overlay { align-items: center; } .sheet { border-radius: 18px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="wrap" id="bar">
+      <h1>Wordloom</h1>
+      <div id="where" aria-live="polite"></div>
+      <button class="btn primary" id="inviteBtn" type="button" hidden>Invite</button>
+      <button class="btn" id="menuBtn" type="button">Menu</button>
+    </div>
+    <form class="wrap" id="guessbar" autocomplete="off">
+      <input id="guess" type="text" enterkeyhint="go" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Type a word" aria-label="Your guess">
+      <button class="btn primary" id="go" type="submit">Guess</button>
+    </form>
+    <div class="wrap" id="clue">
+      <div id="clueTxt"></div>
+      <button class="btn" id="hintBtn" type="button">Hint</button>
+    </div>
+  </div>
+  <div id="board">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Word web"></svg>
+    <div id="zoom">
+      <button class="btn" id="zin" type="button" aria-label="Zoom in">+</button>
+      <button class="btn" id="zout" type="button" aria-label="Zoom out">&minus;</button>
+      <button class="btn small" id="zfit" type="button" aria-label="Fit board to screen">Fit</button>
+    </div>
+    <div id="soon"></div>
+    <div id="boards" aria-label="Boards"></div>
+    <div id="toast" role="status"></div>
+  </div>
+</div>
+
+<div id="invite" class="overlay" role="dialog" aria-modal="true" aria-label="Invite teammates">
+  <div class="sheet">
+    <div class="row" style="justify-content: space-between;">
+      <h2>Invite to team <span class="code" id="invCode"></span></h2>
+      <button class="btn" id="closeInvite" type="button">Close</button>
+    </div>
+    <div class="invgrid">
+      <div class="qrbox">
+        <h3>In the room</h3>
+        <p>Point a phone camera here.</p>
+        <div id="qr" aria-label="QR code for the team link"></div>
+      </div>
+      <div class="remote">
+        <h3>Somewhere else</h3>
+        <p>Send this link. It opens the game straight into your team.</p>
+        <input id="invLink" readonly aria-label="Team link">
+        <div class="row">
+          <button class="btn primary" id="copyLink" type="button">Copy link</button>
+          <button class="btn" id="nativeShare" type="button" hidden>Share…</button>
+        </div>
+        <div class="row">
+          <a class="btn linkbtn" id="smsLink" href="#" target="_blank" rel="noopener">Text</a>
+          <a class="btn linkbtn" id="mailLink" href="#" target="_blank" rel="noopener">Email</a>
+          <a class="btn linkbtn" id="waLink" href="#" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+        <p class="small">Or they can open Wordloom and type the code <b id="invCode2"></b> in Menu → Play together.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="menu" role="dialog" aria-modal="true" aria-label="Menu">
+  <div class="sheet">
+    <div class="row" style="justify-content: space-between;">
+      <h2>How to play</h2>
+      <button class="btn" id="closeMenu" type="button">Close</button>
+    </div>
+    <p>Each orange box hides a word; the number is how many letters it has. Lines join related words, and a word sitting between two others connects them both. Find a word and its neighbours appear. The further you get from the middle, the further the words wander from the topic.</p>
+    <p>Purple words sit on the edge of the board. Finding one opens a whole new board, which gives you another place to start when you're stuck.</p>
+    <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, and Hint again for the first letter. Drag to move around; pinch or use + and &minus; to zoom.</p>
+    <div>
+      <h3>Play together</h3>
+      <p id="teamTxt" style="margin-bottom:8px"></p>
+      <div class="row" id="teamRow"></div>
+    </div>
+    <div>
+      <h3>Settings</h3>
+      <label class="toggle" for="fuzzyBox"><input type="checkbox" id="fuzzyBox" checked> <span>Accept plurals and close spellings</span></label>
+    </div>
+    <div>
+      <h3>Save code</h3>
+      <p style="margin-bottom:8px">Progress saves in this browser by itself. To carry it to another device, copy this code and load it there.</p>
+      <textarea id="saveBox" readonly aria-label="Save code"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" id="copyBtn" type="button">Copy code</button></div>
+    </div>
+    <div>
+      <h3>Load a save code</h3>
+      <textarea id="loadBox" placeholder="Paste a save code here" aria-label="Paste save code"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" id="loadBtn" type="button">Load code</button></div>
+    </div>
+    <div>
+      <h3>Start over</h3>
+      <div class="row"><button class="btn" id="resetBtn" type="button">Erase all progress</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*LOGIC_START*/
+/*
+  WORLD: each board is one entry. Each line of `words` is:   word<link+link|clue@angle,distance
+    link: "hub" (the board's centre) or another word on the same board. Alternate answers: word/other.
+    @angle,distance places the box: 0 = straight up, clockwise; distance from the centre. Omit it and the word is spaced around the centre.
+    A word that appears on two boards is an exit: finding it on one board opens the other.
+    Clues: the first clue written for a word is used everywhere, so leave repeats empty.
+  at: [column, row] puts the board on one big flat map (each step is TILE units). An exit word is positioned once, on the
+    board that faces its neighbour, at the edge pointing toward it; the neighbour board just lists it with no position.
+    soon: true marks a board that is still being written.
+*/
+const TILE = 1250;
+const WORLD = { boards: [
+{ id: "camping", title: "Camping", at: [0, 0], start: true, words: `
+campfire<hub|Ring of stones with logs burning@320.0,215
+lantern<hub|Gas or electric light you hang at the campsite@20.0,215
+tent<hub|Nylon shelter you pitch@75.0,215
+canoe<hub|Narrow boat you sit in and steer by hand@115.0,220
+hike<hub|Long walk in the woods@160.0,215
+sleeping bag<hub|Zip yourself into it at night@235.0,215
+marshmallow<campfire|Toast it on a stick until it's golden@325.2,321
+ghost story<campfire+lantern|Spooky tale told after dark@1.6,290
+moth<lantern|Fluttery insect drawn to the light@23.9,290
+stake<tent|Pounded into the ground to hold down a guy line@58.9,308
+paddle<canoe|Flat blade you dip on alternate sides@128,300
+lake<canoe|Calm water you put in at@109.2,416
+trail<hike|Marked path through the woods@140.7,392
+boots<hike|Sturdy footwear with ankle support@147.8,412
+bear<hike|Reason to hang your food from a tree@191.3,342
+vampire<stake+ghost story|Undead creature a wooden one will stop@45.0,600
+Loch Ness<lake|Scottish water said to hide a monster@108.0,590
+Bigfoot<trail+boots|Hairy ape-man said to roam the forest@140.0,570
+Ghostbusters<ghost story+marshmallow|1984 film about catching spooks in New York@335.0,560
+Goldilocks<bear+sleeping bag|Girl who tried three chairs, three bowls and three beds@205.0,550
+` },
+{ id: "monsters", title: "Monsters", at: [1, 0], words: `
+Dracula<hub|Count from Transylvania@300.0,230
+werewolf<hub|Turns furry at night@345.0,225
+Frankenstein<hub|Mary Shelley's scientist, often confused with his creation@30.0,235
+mummy<hub|Wrapped-up body from an ancient tomb@85.0,225
+zombie<hub|Shuffling undead that craves the living@130.0,230
+Alien<hub|Visitor from another planet@178.0,220
+Yeti<hub|Abominable creature of the Himalayas@222.0,230
+Kraken<hub|Huge sea monster from Norse legend@262.0,225
+vampire<Dracula+bat|
+Loch Ness<Kraken|
+Bigfoot<Yeti|
+bat<Dracula+vampire|Flying mammal that hangs upside down@303.4,440
+full moon<werewolf|What makes him change@323.2,318
+lightning<Frankenstein|Bolt that brought the creature to life@29.3,440
+bolts<Frankenstein|Metal pieces in the creature's neck@42.4,440
+pyramid<mummy|Huge stone tomb in the desert@90.1,347
+brains<zombie|What the undead want to eat@135.2,290
+UFO<Alien|Unidentified thing in the sky@178.1,354
+snow<Yeti|White stuff covering the Himalayas@222.4,347
+tentacles<Kraken|Long arms that drag ships under@270.8,356
+Halloween<bat+full moon|October 31st@311.8,440
+Flash<lightning|Speedster superhero in red@8.0,640
+Usain Bolt<lightning+bolts|Jamaican sprinter, fastest man alive@48.0,600
+Sphinx<pyramid|Lion with a human head, guarding Giza@92.0,640
+flying saucer<UFO|Classic disc-shaped spacecraft@176.0,640
+snowman<snow|Carrot nose, coal eyes@220.2,440
+calamari<tentacles|Fried squid rings@263.9,440
+` },
+{ id: "movies", title: "Movies", at: [0, -1], words: `
+Star Wars<hub|A long time ago, in a galaxy far, far away@0.0,225
+Marvel<hub|Comic book studio behind the Thor and Hulk films@55.0,225
+Oscar<hub|Golden award for the best film@105.0,220
+popcorn<hub|Snack that pops at the cinema@150.0,225
+comedy<hub|Funny film genre@205.0,225
+sequel<hub|Part two@255.0,220
+theater<hub|Where films are shown on the big screen@305.0,225
+Ghostbusters<comedy+sequel|
+Jedi<Star Wars|Knight who uses the Force@16.4,290
+Death Star<Star Wars|Moon-sized space station that destroys planets@352.8,290
+Iron Man<Marvel|Tony Stark in a metal suit@75.5,334
+statue<Oscar|What the award actually is@89.1,290
+trash can<Oscar|Where the Grouch lives@115.9,332
+butter<popcorn|Melted on top@156.1,331
+kernel<popcorn|What pops@143.8,312
+laugh<comedy|Ha ha@213.0,310
+stage<theater|Raised platform for a play@300.0,339
+curtain<theater|Rises before the show@311.6,332
+Avengers<Iron Man+Marvel|Superhero team assembled@78.0,640
+corn on the cob<butter+kernel|Summer side dish you eat with your hands@148.6,440
+recycling<trash can|Blue bin for cans and bottles@118.7,440
+stage fright<stage+curtain|Nerves before you go on@308.5,440
+Rocky<sequel|Philadelphia boxer who runs up the museum steps@262.0,640
+` },
+{ id: "fairytales", title: "Fairy tales", at: [0, 1], words: `
+porridge<hub|Hot oats, just right@340.0,220
+frog<hub|Turns into a prince@30.0,225
+princess<hub|Royal daughter@75.0,225
+wish<hub|Blow out the candles and make one@120.0,220
+giant<hub|Fee-fi-fo-fum@165.0,225
+wolf<hub|Huffs and puffs@210.0,225
+witch<hub|Cackling woman in a pointed hat@255.0,225
+mirror<hub|On the wall, who's the fairest@300.0,225
+Goldilocks<porridge|
+kiss<frog+princess|What breaks the spell@52.4,290
+pea<princess|Under twenty mattresses@67.7,290
+Kermit<frog|Green puppet who sings about rainbows@25.9,315
+genie<wish|Grants three, from a bottle@121.6,358
+beanstalk<giant|Climbed by Jack@168.1,290
+grandma<wolf|Who Red Riding Hood went to visit@210.7,290
+broom<witch|Sweeping stick@248.4,299
+poison apple<witch+mirror|What the queen gave the fairest one to eat@279.5,290
+selfie<mirror|Photo of yourself@290.1,330
+Muppets<Kermit|Puppet troupe with Miss Piggy@28.0,440
+shooting star<wish|Streak across the night sky@110.0,640
+lamp<genie|Rub it and out he comes@123.7,440
+Quidditch<broom|Wizard sport played in the air@248.4,440
+iPhone<poison apple+selfie|Phone with a bitten-fruit logo@284.4,440
+` },
+{ id: "superheroes", title: "Superheroes", at: [1, -1], soon: true, words: `
+Flash<hub|
+Avengers<hub|
+` },
+{ id: "space", title: "Space", at: [1, 1], soon: true, words: `
+flying saucer<hub|
+shooting star<hub|
+` },
+{ id: "egypt", title: "Ancient Egypt", at: [2, 0], soon: true, words: `
+Sphinx<hub|
+` },
+{ id: "sports", title: "Sports", at: [-1, -1], soon: true, words: `
+Rocky<hub|
+` }
+] };
+
+function norm(s) { return String(s).toLowerCase().replace(/[^a-z]/g, ""); }
+function nodeW(n) { return Math.max(46, n.show.length * 10 + 24); }
+
+function parseWorld(world) {
+  const clues = {};
+  const boards = world.boards.map(b => {
+    const nodes = [], byKey = {};
+    b.words.split("\n").forEach(raw => {
+      const line = raw.trim(); if (!line) return;
+      const i = line.indexOf("<"), j = line.indexOf("|");
+      if (i < 1 || j < i) throw new Error("Bad line in " + b.id + ": " + line);
+      const forms = line.slice(0, i).split("/").map(s => s.trim());
+      const links = line.slice(i + 1, j).split("+").map(s => s.trim());
+      let clue = line.slice(j + 1).trim(), pos = null;
+      const at = clue.lastIndexOf("@");
+      if (at >= 0) { const [deg, r] = clue.slice(at + 1).split(",").map(Number); pos = { deg, r }; clue = clue.slice(0, at).trim(); }
+      const key = norm(forms[0]);
+      if (byKey[key]) throw new Error("Duplicate word in " + b.id + ": " + key);
+      if (clue && !clues[key]) clues[key] = clue;
+      const keyOf = s => (s === "hub" ? null : norm(s));
+      const n = { key, show: forms[0], forms: forms.map(norm), linkKeys: links.map(keyOf), nbrs: new Set(), hubLinked: false, pos };
+      nodes.push(n); byKey[key] = n;
+    });
+    const edges = [], seen = new Set();
+    nodes.forEach(n => n.linkKeys.forEach(k => {
+      if (k !== null && !byKey[k]) throw new Error("Missing link '" + k + "' for '" + n.key + "' in " + b.id);
+      const id = [k || "#", n.key].sort().join("|"); if (seen.has(id)) return; seen.add(id);
+      edges.push({ a: k, b: n.key });
+      if (k === null) n.hubLinked = true; else { n.nbrs.add(k); byKey[k].nbrs.add(n.key); }
+    }));
+    return { id: b.id, title: b.title, at: b.at || [0, 0], start: !!b.start, soon: !!b.soon, nodes, byKey, edges };
+  });
+  return { boards, clues };
+}
+
+/* Every board sits on one flat map. Local positions are relative to the board's centre; x/y are map coordinates. */
+function layoutWorld(boards) {
+  const placed = {};
+  boards.forEach(b => {
+    b.ox = b.at[0] * TILE; b.oy = b.at[1] * TILE;
+    b.hub = { x: b.ox, y: b.oy, w: Math.max(130, b.title.length * 12 + 40), h: 42 };
+    b.nodes.forEach(n => {
+      n.w = nodeW(n); n.h = 30;
+      if (!n.pos) return;
+      const a = n.pos.deg * Math.PI / 180;
+      n.x = b.ox + Math.sin(a) * n.pos.r; n.y = b.oy - Math.cos(a) * n.pos.r; placed[n.key] = n;
+    });
+  });
+  boards.forEach(b => {
+    const free = b.nodes.filter(n => !n.pos && !placed[n.key]);
+    free.forEach((n, i) => { const a = (i * 360 / free.length) * Math.PI / 180; n.x = b.ox + Math.sin(a) * 210; n.y = b.oy - Math.cos(a) * 210; });
+    b.nodes.forEach(n => { if (!n.pos && placed[n.key]) { n.x = placed[n.key].x; n.y = placed[n.key].y; } });
+  });
+}
+
+function createGame(world, saved) {
+  const { boards, clues } = parseWorld(world);
+  layoutWorld(boards);
+  const alias = {}, keys = new Set(), homes = {};
+  boards.forEach(b => b.nodes.forEach(n => { keys.add(n.key); n.forms.forEach(f => { alias[f] = n.key; }); (homes[n.key] = homes[n.key] || []).push(b.id); }));
+  const solved = {}, hints = {};
+  const load = o => {
+    if (o && Array.isArray(o.s)) o.s.forEach(k => { if (keys.has(k)) solved[k] = true; });
+    if (o && o.h) Object.keys(o.h).forEach(k => { if (keys.has(k)) hints[k] = Math.min(2, o.h[k] | 0); });
+  };
+  load(saved);
+  const g = { boards, clues, solved, hints, total: keys.size, fuzzy: true };
+  g.byId = id => boards.find(b => b.id === id);
+  g.isExit = key => homes[key] && homes[key].length > 1;
+  g.exitsTo = (key, fromId) => (homes[key] || []).filter(id => id !== fromId);
+  g.isUnlocked = b => b.start || b.nodes.some(n => solved[n.key]);
+  g.visible = b => {
+    const v = new Set();
+    b.nodes.forEach(n => {
+      if (n.hubLinked || solved[n.key]) { v.add(n.key); return; }
+      for (const k of n.nbrs) if (solved[k]) { v.add(n.key); return; }
+    });
+    return v;
+  };
+  g.progress = b => ({ done: b.nodes.filter(n => solved[n.key]).length, of: b.nodes.length });
+  const state = () => { const s = {}; boards.forEach(b => { s[b.id] = { u: g.isUnlocked(b), v: g.visible(b), c: b.nodes.every(n => solved[n.key]) }; }); return s; };
+  /* Matching: exact first, then singular/plural either way, then a small typo allowance
+     (swapped letters for 4-letter words, 1 slip for 5-7 letters, 2 for longer) against words you can currently reach. */
+  const variants = q => {
+    const v = [q];
+    if (q.endsWith("ies")) v.push(q.slice(0, -3) + "y");
+    if (q.endsWith("es")) v.push(q.slice(0, -2));
+    if (q.endsWith("s")) v.push(q.slice(0, -1));
+    if (q.endsWith("y")) v.push(q.slice(0, -1) + "ies");
+    v.push(q + "s", q + "es");
+    return v;
+  };
+  const exactKey = q => { if (!g.fuzzy) return alias[q] || null; for (const v of variants(q)) if (alias[v]) return alias[v]; return null; };
+  const edits = (a, b, max) => {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j), prev2 = null;
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let rowMin = i;
+      for (let j = 1; j <= b.length; j++) {
+        let d = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, prev2[j - 2] + 1);
+        cur.push(d); rowMin = Math.min(rowMin, d);
+      }
+      if (rowMin > max) return max + 1;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length];
+  };
+  const reachable = () => { const s = new Set(); boards.forEach(b => { if (g.isUnlocked(b)) g.visible(b).forEach(k => { if (!solved[k]) s.add(k); }); }); return s; };
+  g.match = raw => {
+    const q = norm(raw);
+    if (!q) return null;
+    const k = exactKey(q);
+    if (k) return { key: k, fuzzy: false };
+    if (!g.fuzzy || q.length < 4) return null;
+    let best = null, bestD = 9, tie = false;
+    const forms = {};
+    boards.forEach(b => b.nodes.forEach(n => { forms[n.key] = n.forms; }));
+    reachable().forEach(key => forms[key].forEach(f => {
+      if (f.length < 4) return;
+      const max = f.length >= 8 ? 2 : 1;
+      let d = 9;
+      const sorted = s => s.split("").sort().join("");
+      variants(q).forEach(v => {
+        if (f.length < 5 && (v.length !== f.length || sorted(v) !== sorted(f))) return; /* short words: swapped letters only */
+        d = Math.min(d, edits(v, f, max));
+      });
+      if (d > max) return;
+      if (d < bestD) { best = key; bestD = d; tie = false; } else if (d === bestD && key !== best) tie = true;
+    }));
+    return best && !tie ? { key: best, fuzzy: true } : null;
+  };
+  g.guess = raw => {
+    if (!norm(raw)) return { r: "empty" };
+    const m = g.match(raw);
+    if (!m) return { r: "wrong" };
+    const key = m.key;
+    if (solved[key]) return { r: "already", key };
+    const live = boards.filter(b => g.isUnlocked(b) && g.visible(b).has(key));
+    if (!live.length) return { r: "early", key };
+    const before = state(); solved[key] = true; const after = state();
+    const fresh = {}, unlocked = [], completed = [];
+    boards.forEach(b => {
+      const f = []; after[b.id].v.forEach(k => { if (!before[b.id].v.has(k)) f.push(k); });
+      if (f.length) fresh[b.id] = f;
+      if (after[b.id].u && !before[b.id].u) unlocked.push(b.id);
+      if (after[b.id].c && !before[b.id].c && !b.soon) completed.push(b.id);
+    });
+    return { r: "ok", key, fuzzy: m.fuzzy, fresh, unlocked, completed, found: live.map(b => b.id) };
+  };
+  g.hint = key => { if (solved[key]) return 2; hints[key] = Math.min(2, (hints[key] || 0) + 1); return hints[key]; };
+  g.count = () => Object.keys(solved).length;
+  g.snapshot = () => ({ s: Object.keys(solved), h: Object.assign({}, hints) });
+  /* replace the whole state, e.g. with a team's shared progress */
+  g.setState = (foundKeys, hintMap) => {
+    Object.keys(solved).forEach(k => delete solved[k]); Object.keys(hints).forEach(k => delete hints[k]);
+    foundKeys.forEach(k => { if (keys.has(k)) solved[k] = true; });
+    Object.keys(hintMap || {}).forEach(k => { if (keys.has(k)) hints[k] = Math.min(2, hintMap[k] | 0); });
+  };
+  g.reset = () => { Object.keys(solved).forEach(k => delete solved[k]); Object.keys(hints).forEach(k => delete hints[k]); };
+  g.exportCode = () => "WL2:" + btoa(JSON.stringify(g.snapshot()));
+  g.importCode = str => {
+    try {
+      const t = String(str).trim(); if (t.slice(0, 4) !== "WL2:") return false;
+      const o = JSON.parse(atob(t.slice(4))); if (!o || !Array.isArray(o.s)) return false;
+      g.reset(); load(o); return true;
+    } catch (e) { return false; }
+  };
+  return g;
+}
+/*LOGIC_END*/
+
+(function () {
+  if (typeof document === "undefined") return;
+  const $ = s => document.querySelector(s);
+  const LS = "wordloom.v3";
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS)); } catch (e) {}
+  const game = createGame(WORLD, saved);
+  const startId = game.boards.find(b => b.start).id;
+  let curId = (saved && game.byId(saved.cur) && game.isUnlocked(game.byId(saved.cur))) ? saved.cur : startId;
+  let sel = null, fresh = new Set(), burst = null, newBoards = new Set();
+  let vb = { x: -300, y: -300, w: 600, h: 600 };
+  const svg = $("#svg"), boardEl = $("#board"), app = $("#app");
+  const guessEl = $("#guess"), goBtn = $("#go"), menu = $("#menu");
+  let team = null, soloState = null, teamFound = {}, teamHints = {}, firstSnap = true, pollTimer = null, lastState = "";
+  const pending = new Set(), pendingHints = {};
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const cur = () => game.byId(curId);
+  const titleOf = id => game.byId(id).title;
+  function persist() { try { const o = (team && soloState) ? Object.assign({}, soloState) : game.snapshot(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
+
+  /* keep the app exactly the size of the visible screen, so the keyboard can't scroll the controls away */
+  function fitScreen() {
+    const vv = window.visualViewport;
+    app.style.height = (vv ? vv.height : window.innerHeight) + "px";
+    if (window.scrollY) window.scrollTo(0, 0);
+    applyVB();
+  }
+  if (window.visualViewport) { visualViewport.addEventListener("resize", fitScreen); visualViewport.addEventListener("scroll", () => { if (window.scrollY) window.scrollTo(0, 0); }); }
+  window.addEventListener("resize", fitScreen);
+
+  let toastTimer = null, toastMsgs = [];
+  function toast(msg) {
+    toastMsgs.push(msg); const t = $("#toast");
+    t.textContent = toastMsgs.join("  ·  "); t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.classList.remove("show"); toastMsgs = []; }, 2600);
+  }
+
+  const counts = n => n.show.split(" ").map(w => w.replace(/[^A-Za-z]/g, "").length).join(" + ");
+  function label(n) {
+    if (game.solved[n.key]) return n.show;
+    if ((game.hints[n.key] || 0) >= 2) return n.show[0].toUpperCase() + " · " + counts(n);
+    return counts(n);
+  }
+  const nodeOf = key => { for (const b of game.boards) if (b.byKey[key]) return b.byKey[key]; return null; };
+  function renderBoard() {
+    const open = game.boards.filter(b => game.isUnlocked(b));
+    let lines = "", hubs = "", boxes = "", drawn = new Set();
+    open.forEach(b => {
+      const vis = game.visible(b);
+      b.edges.forEach(e => {
+        if ((e.a && !vis.has(e.a)) || !vis.has(e.b)) return;
+        const p = e.a ? b.byKey[e.a] : b.hub, n = b.byKey[e.b];
+        const lit = game.solved[e.b] && (!e.a || game.solved[e.a]);
+        lines += `<line class="edge${lit ? " solved" : ""}" x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${n.x.toFixed(1)}" y2="${n.y.toFixed(1)}"/>`;
+      });
+      hubs += `<g class="node hub" transform="translate(${b.hub.x},${b.hub.y})"><rect x="${-b.hub.w / 2}" y="${-b.hub.h / 2}" width="${b.hub.w}" height="${b.hub.h}" rx="13"/><text x="0" y="1">${esc(b.title)}</text></g>`;
+      b.nodes.forEach(n => {
+        if (!vis.has(n.key) || drawn.has(n.key)) return; drawn.add(n.key);
+        const cls = "node" + (game.solved[n.key] ? " solved" : "") + (game.isExit(n.key) ? " exit" : "") + (sel === n.key ? " sel" : "") + (fresh.has(n.key) ? " pop" : "");
+        boxes += `<g transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})"><g class="${cls}" data-k="${esc(n.key)}"><rect x="${-n.w / 2}" y="${-n.h / 2}" width="${n.w}" height="${n.h}" rx="9"/><text x="0" y="1">${esc(label(n))}</text></g></g>`;
+      });
+    });
+    let stars = "";
+    if (burst) { const n = nodeOf(burst); if (n) { for (let i = 0; i < 9; i++) stars += `<text class="star" style="--a:${i * 40}deg" x="0" y="0">★</text>`; stars = `<g transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})">${stars}</g>`; } }
+    svg.innerHTML = lines + hubs + boxes + stars;
+    renderSoon();
+  }
+  function renderSoon() {
+    const b = cur(), soon = $("#soon");
+    if (b.soon) { soon.style.display = "block"; soon.textContent = `${b.title} is still being written. More words coming soon.`; } else soon.style.display = "none";
+  }
+  /* the board you're looking at is the open board whose centre is nearest the middle of the screen */
+  function nearest() {
+    const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2;
+    let best = null, bd = Infinity;
+    game.boards.forEach(b => { if (!game.isUnlocked(b)) return; const d = Math.hypot(b.ox - cx, b.oy - cy); if (d < bd) { bd = d; best = b.id; } });
+    return best || startId;
+  }
+  function track() { const id = nearest(); if (id !== curId) { curId = id; persist(); renderBoards(); renderWhere(); renderSoon(); } }
+  function renderBoards() {
+    const el = $("#boards"); let html = "";
+    game.boards.forEach(b => {
+      if (!game.isUnlocked(b)) return;
+      const p = game.progress(b);
+      html += `<button type="button" class="chip${b.id === curId ? " cur" : ""}${newBoards.has(b.id) ? " new" : ""}" data-board="${b.id}">${esc(b.title)} <small>${b.soon ? "soon" : p.done + "/" + p.of}${!b.soon && p.done === p.of ? " ★" : ""}</small></button>`;
+    });
+    const locked = game.boards.filter(b => !game.isUnlocked(b)).length;
+    if (locked) html += `<span class="chip lock" aria-label="${locked} boards not found yet">? <small>${locked} more</small></span>`;
+    el.innerHTML = html;
+  }
+  function letters(n) {
+    const parts = n.show.split(" ").map(w => w.replace(/[^A-Za-z]/g, "").length);
+    return parts.length > 1 ? `${parts.join(" + ")} letters` : `${parts[0]} letters`;
+  }
+  function renderClue() {
+    const t = $("#clueTxt"), hb = $("#hintBtn");
+    const n = sel ? nodeOf(sel) : null;
+    if (!n) { t.innerHTML = `<span class="muted">Tap a box for its length and a hint.</span>`; hb.textContent = "Hint"; hb.disabled = true; return; }
+    const clue = game.clues[n.key] || "";
+    if (game.solved[n.key]) {
+      const to = game.exitsTo(n.key, curId).filter(id => id !== curId);
+      t.innerHTML = `<b>${esc(n.show)}</b> <span class="muted">· ${esc(clue)}${to.length ? " · leads to " + esc(to.map(titleOf).join(", ")) : ""}</span>`;
+      hb.textContent = to.length ? "Go" : "Found"; hb.disabled = !to.length; return;
+    }
+    hb.disabled = false;
+    const tier = game.hints[n.key] || 0;
+    let h = `<b>${letters(n)}</b>`;
+    if (tier >= 2) h += ` <span class="muted">· starts with ${esc(n.show[0].toUpperCase())}</span>`;
+    if (tier >= 1) h += `<br>${esc(clue)}`;
+    t.innerHTML = h;
+    hb.textContent = tier === 0 ? "Hint" : tier === 1 ? "Letter" : "No more";
+    if (tier >= 2) hb.disabled = true;
+  }
+  function renderWhere() {
+    const p = game.progress(cur());
+    $("#where").innerHTML = `${esc(cur().title)} · <b>${game.count()}</b> found${team ? " · team " + esc(team) : ""}`;
+  }
+  function renderAll() { renderBoard(); renderBoards(); renderClue(); renderWhere(); }
+
+  /* view */
+  const size = () => { const r = boardEl.getBoundingClientRect(); return { W: Math.max(1, r.width), H: Math.max(1, r.height) }; };
+  function applyVB() { const { W, H } = size(); vb.h = vb.w * H / W; svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); if (typeof track === "function" && game) track(); }
+  function fit(id) {
+    const b = id ? game.byId(id) : cur(), vis = game.visible(b), { W, H } = size();
+    let x0 = b.hub.x - b.hub.w / 2, x1 = b.hub.x + b.hub.w / 2, y0 = b.hub.y - b.hub.h / 2, y1 = b.hub.y + b.hub.h / 2;
+    b.nodes.forEach(n => { if (!vis.has(n.key)) return; x0 = Math.min(x0, n.x - n.w / 2); x1 = Math.max(x1, n.x + n.w / 2); y0 = Math.min(y0, n.y - n.h / 2); y1 = Math.max(y1, n.y + n.h / 2); });
+    const padX = 30, padTop = 20, padBottom = 70;
+    const s = Math.min(1.6, (W - 2 * padX - 50) / (x1 - x0), (H - padTop - padBottom) / (y1 - y0));
+    vb.w = W / s; vb.h = H / s;
+    vb.x = (x0 + x1) / 2 - vb.w / 2; vb.y = y0 - padTop / s - ((H - padTop - padBottom) / s - (y1 - y0)) / 2;
+    applyVB();
+  }
+  function zoomBy(f, px, py) {
+    const { W, H } = size(); if (px == null) { px = W / 2; py = H / 2; }
+    const s = W / vb.w, ns = Math.min(4, Math.max(0.25, s * f));
+    const wx = vb.x + px / W * vb.w, wy = vb.y + py / H * vb.h;
+    vb.w = W / ns; vb.h = H / ns; vb.x = wx - px / W * vb.w; vb.y = wy - py / H * vb.h; applyVB();
+  }
+  const pts = new Map(); let moved = false, lastDist = 0;
+  svg.addEventListener("pointerdown", e => {
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }); moved = false;
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; lastDist = Math.hypot(a.x - b.x, a.y - b.y); }
+  });
+  window.addEventListener("pointermove", e => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    const { W } = size();
+    if (pts.size === 1) {
+      if (!moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 6) return;
+      moved = true; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+      vb.x -= dx * vb.w / W; vb.y -= dy * vb.w / W; applyVB();
+    } else if (pts.size === 2) {
+      p.x = e.clientX; p.y = e.clientY;
+      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), r = boardEl.getBoundingClientRect();
+      if (lastDist > 0) zoomBy(d / lastDist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      lastDist = d; moved = true;
+    }
+  });
+  const endPtr = e => { pts.delete(e.pointerId); if (pts.size < 2) lastDist = 0; };
+  window.addEventListener("pointerup", endPtr); window.addEventListener("pointercancel", endPtr);
+  svg.addEventListener("wheel", e => { e.preventDefault(); const r = boardEl.getBoundingClientRect(); zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  /* taps are read on pointerup, so touching the board never takes focus away from the word box */
+  boardEl.addEventListener("pointerdown", e => { if (!e.target.closest("button")) e.preventDefault(); });
+  boardEl.addEventListener("touchstart", e => { if (!e.target.closest("button")) e.preventDefault(); }, { passive: false });
+  svg.addEventListener("pointerup", e => {
+    if (moved || pts.size > 0) return;
+    const g = e.target.closest("[data-k]");
+    sel = g ? g.getAttribute("data-k") : null; fresh = new Set(); renderBoard(); renderClue();
+    if (sel) focusOn(sel);
+  });
+  /* centre a word and zoom in a little (never further than a comfortable reading size) */
+  let anim = null;
+  function focusOn(key) {
+    const n = nodeOf(key); if (!n) return;
+    const { W, H } = size(), s0 = W / vb.w, s1 = Math.max(s0, Math.min(1.35, s0 * 1.6));
+    const usableH = H - 60, cx0 = vb.x + vb.w / 2, cy0 = vb.y + usableH / 2 * (vb.w / W);
+    const t0 = performance.now(), dur = 280;
+    cancelAnimationFrame(anim);
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur), k = 1 - Math.pow(1 - t, 3);
+      const s = s0 + (s1 - s0) * k, cx = cx0 + (n.x - cx0) * k, cy = cy0 + (n.y - cy0) * k;
+      vb.w = W / s; vb.h = H / s; vb.x = cx - vb.w / 2; vb.y = cy - (usableH / 2) / s; applyVB();
+      if (t < 1) anim = requestAnimationFrame(step);
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) step(t0 + dur); else anim = requestAnimationFrame(step);
+  }
+  if (window.ResizeObserver) new ResizeObserver(applyVB).observe(boardEl);
+
+  function switchBoard(id) { curId = id; sel = null; fresh = new Set(); burst = null; fit(id); curId = id; persist(); renderAll(); }
+  $("#boards").addEventListener("click", e => { const b = e.target.closest("[data-board]"); if (b) switchBoard(b.getAttribute("data-board")); });
+  $("#zin").addEventListener("click", () => zoomBy(1.3));
+  $("#zout").addEventListener("click", () => zoomBy(1 / 1.3));
+  $("#zfit").addEventListener("click", fit);
+  document.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    b.classList.add("is-pressed"); setTimeout(() => b.classList.remove("is-pressed"), 260);
+  }, true);
+  /* the word box keeps focus: buttons outside the menu don't take it, and anything that does gives it straight back */
+  const keepFocus = () => { if (!menu.classList.contains("open") && !$("#invite").classList.contains("open")) { try { guessEl.focus({ preventScroll: true }); } catch (_) { guessEl.focus(); } } };
+  document.addEventListener("mousedown", e => { if (!e.target.closest("#menu, #invite") && e.target !== guessEl && e.target.closest("button, .chip, #board")) e.preventDefault(); });
+  document.addEventListener("click", e => { if (!e.target.closest("#menu, #invite")) setTimeout(keepFocus, 0); });
+  guessEl.addEventListener("blur", () => setTimeout(() => { const a = document.activeElement; if (!a || a === document.body || (a.closest && !a.closest("#menu, #invite"))) keepFocus(); }, 0));
+
+  $("#hintBtn").addEventListener("click", () => {
+    if (!sel) return;
+    if (game.solved[sel]) { const to = game.exitsTo(sel, curId).filter(id => id !== curId); if (to.length) switchBoard(to[0]); return; }
+    game.hint(sel); persist(); shareHint(sel); renderBoard(); renderClue();
+  });
+
+  function flashGo(txt, cls) { goBtn.textContent = txt; goBtn.classList.add(cls); setTimeout(() => { goBtn.textContent = "Guess"; goBtn.classList.remove(cls); }, 800); }
+  function shakeInput() { guessEl.classList.remove("shake"); void guessEl.offsetWidth; guessEl.classList.add("shake"); }
+  $("#guessbar").addEventListener("submit", e => {
+    e.preventDefault();
+    const res = game.guess(guessEl.value);
+    if (res.r === "empty") { shakeInput(); return; }
+    guessEl.value = "";
+    if (res.r === "wrong") { flashGo("✗", "bad"); shakeInput(); toast("Not on the board"); return; }
+    if (res.r === "already") { flashGo("•", "bad"); toast("Already found"); return; }
+    if (res.r === "early") { flashGo("…", "bad"); shakeInput(); toast("Right word, but you haven't reached it yet"); return; }
+    flashGo("✓", "good"); persist(); shareFound(res.key);
+    const f = [].concat(...Object.values(res.fresh)), here = true;
+    fresh = new Set(f); burst = res.key; if (sel === res.key) sel = null;
+    newBoards = new Set(res.unlocked);
+    const shown = game.boards.find(b => b.byKey[res.key]).byKey[res.key].show;
+    if (res.fuzzy) toast(`Close enough: “${shown}”`);
+    res.unlocked.forEach(id => toast(`New board: ${titleOf(id)}`));
+    res.completed.forEach(id => toast(`${titleOf(id)} complete ★`));
+    renderAll();
+    const off = f.some(k => { const n = nodeOf(k); return n && (n.x - n.w / 2 < vb.x || n.x + n.w / 2 > vb.x + vb.w || n.y - n.h / 2 < vb.y || n.y + n.h / 2 > vb.y + vb.h - 60); });
+    if (off) fit(curId);
+    setTimeout(() => { burst = null; newBoards = new Set(); fresh = new Set(); renderBoard(); renderBoards(); }, 1000);
+  });
+
+  /* menu */
+  let resetArmed = false;
+  $("#menuBtn").addEventListener("click", () => {
+    $("#saveBox").value = game.exportCode(); $("#loadBox").value = "";
+    resetArmed = false; $("#resetBtn").textContent = "Erase all progress"; $("#resetBtn").classList.remove("bad");
+    menu.classList.add("open");
+  });
+  const closeMenu = () => { menu.classList.remove("open"); keepFocus(); };
+  $("#closeMenu").addEventListener("click", closeMenu);
+  menu.addEventListener("click", e => { if (e.target === menu) closeMenu(); });
+  $("#copyBtn").addEventListener("click", () => {
+    const box = $("#saveBox"), b = $("#copyBtn"); box.select();
+    const done = ok => { b.textContent = ok ? "Copied ✓" : "Select it and copy by hand"; setTimeout(() => { b.textContent = "Copy code"; }, 1600); };
+    try { navigator.clipboard.writeText(box.value).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+  });
+  $("#loadBtn").addEventListener("click", () => {
+    const b = $("#loadBtn"), ok = game.importCode($("#loadBox").value);
+    b.textContent = ok ? "Loaded ✓" : "That code didn't work"; setTimeout(() => { b.textContent = "Load code"; }, 1600);
+    if (ok) { curId = startId; sel = null; persist(); renderAll(); fit(); $("#saveBox").value = game.exportCode(); }
+  });
+  $("#resetBtn").addEventListener("click", () => {
+    const b = $("#resetBtn");
+    if (team) { b.textContent = "Leave the team game first"; setTimeout(() => { b.textContent = "Erase all progress"; }, 1600); return; }
+    if (!resetArmed) { resetArmed = true; b.textContent = "Tap again to erase everything"; b.classList.add("bad"); return; }
+    game.reset(); curId = startId; sel = null; resetArmed = false; persist(); renderAll(); fit();
+    b.textContent = "Erased ✓"; b.classList.remove("bad"); $("#saveBox").value = game.exportCode();
+    setTimeout(() => { b.textContent = "Erase all progress"; }, 1600);
+  });
+
+
+  /* ---------- settings ---------- */
+  const SETTINGS = "wordloom.settings";
+  let settings = { fuzzy: true };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS)) || {}); } catch (e) {}
+  game.fuzzy = settings.fuzzy !== false;
+  const fuzzyBox = $("#fuzzyBox"); fuzzyBox.checked = game.fuzzy;
+  fuzzyBox.addEventListener("change", () => { game.fuzzy = settings.fuzzy = fuzzyBox.checked; try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} });
+
+  /* ---------- play together ----------
+     A team shares one copy of the map through the /api/team function. Each phone checks for new words every
+     few seconds while the game is on screen. Words you find show at once and are sent in the background. */
+  const TEAMKEY = "wordloom.team", NAMEKEY = "wordloom.name";
+  let myName = ""; try { myName = localStorage.getItem(NAMEKEY) || ""; } catch (e) {}
+  const nameOf = by => (by && by === myName) ? "You" : (by || "A teammate");
+  function applyTeam() {
+    const keys = new Set(Object.keys(teamFound)); pending.forEach(k => { if (keys.has(k)) pending.delete(k); else keys.add(k); });
+    const hints = Object.assign({}, teamHints); Object.keys(pendingHints).forEach(k => { if ((teamHints[k] | 0) >= pendingHints[k]) delete pendingHints[k]; else hints[k] = pendingHints[k]; });
+    const state = JSON.stringify([[...keys].sort(), hints]);
+    if (state === lastState) return; lastState = state;
+    const before = new Set(Object.keys(game.solved));
+    game.setState([...keys], hints);
+    const added = Object.keys(game.solved).filter(k => !before.has(k));
+    if (added.length && !firstSnap) {
+      fresh = new Set(added);
+      added.forEach(k => { const who = teamFound[k]; if (who && who !== myName) toast(`${who} found “${nodeOf(k).show}”`); });
+      setTimeout(() => { fresh = new Set(); renderBoard(); }, 900);
+    }
+    firstSnap = false; renderAll();
+  }
+  async function pull() {
+    if (!team || document.hidden) return;
+    const code = team;
+    try {
+      const r = await fetch(`/api/team?code=${encodeURIComponent(code)}`, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      if (code !== team) return;
+      teamFound = j.found || {}; teamHints = j.hints || {}; applyTeam();
+      $("#teamStatus") && ($("#teamStatus").textContent = "");
+    } catch (e) { const st = $("#teamStatus"); if (st) st.textContent = "Can't reach the team right now. Retrying…"; }
+  }
+  function startPolling() { clearInterval(pollTimer); pull(); pollTimer = setInterval(pull, 3000); }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && team) pull(); });
+  function joinTeam(code) {
+    code = String(code || "").toUpperCase().replace(/[^A-Z]/g, "");
+    if (code.length !== 4) { toast("Team codes are 4 letters"); return false; }
+    if (!team) soloState = game.snapshot();
+    team = code; teamFound = {}; teamHints = {}; pending.clear(); firstSnap = true; lastState = "";
+    try { localStorage.setItem(TEAMKEY, code); } catch (e) {}
+    game.setState([], {}); renderAll(); renderTeam(); startPolling();
+    return true;
+  }
+  function leaveTeam() {
+    clearInterval(pollTimer); team = null;
+    try { localStorage.removeItem(TEAMKEY); } catch (e) {}
+    try { if (/^#team-/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    game.setState(soloState ? soloState.s : [], soloState ? soloState.h : {}); soloState = null;
+    persist(); renderAll(); renderTeam(); fit(curId);
+  }
+  function post(body) {
+    return fetch("/api/team", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ code: team }, body)) })
+      .then(r => { if (!r.ok) throw new Error(r.status); });
+  }
+  function shareFound(key) {
+    if (!team) return; pending.add(key);
+    post({ type: "found", word: key, name: myName }).catch(() => toast("Couldn't send that word to your team. It'll stay on your screen."));
+  }
+  function shareHint(key) {
+    if (!team) return; pendingHints[key] = game.hints[key] | 0;
+    post({ type: "hint", word: key, tier: game.hints[key] | 0 }).catch(() => {});
+  }
+  function saveName(v) { myName = String(v || "").trim().slice(0, 20); try { localStorage.setItem(NAMEKEY, myName); } catch (e) {} }
+  function renderTeam() {
+    const txt = $("#teamTxt"), row = $("#teamRow");
+    row.textContent = "";
+    const mk = (label, fn, cls) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = label; b.addEventListener("click", fn); row.appendChild(b); return b; };
+    const nameIn = document.createElement("input"); nameIn.id = "myName"; nameIn.maxLength = 20; nameIn.placeholder = "Your name"; nameIn.value = myName; nameIn.autocomplete = "off"; nameIn.setAttribute("aria-label", "Your name");
+    nameIn.addEventListener("change", () => saveName(nameIn.value));
+    if (team) {
+      $("#inviteBtn").hidden = false;
+      txt.innerHTML = `You're playing team game <span class="code">${esc(team)}</span>. Everyone on this team sees the same words, live. <span id="teamStatus" class="muted"></span>`;
+      row.appendChild(nameIn);
+      mk("Invite people", openInvite, "primary");
+      mk("Leave team game", leaveTeam);
+      return;
+    }
+    $("#inviteBtn").hidden = true;
+    txt.textContent = "Type your name, then start a team game and invite people with a link or QR code, or enter a code someone gave you. Your solo progress is kept separately.";
+    row.appendChild(nameIn);
+    const needName = () => { saveName(nameIn.value); if (!myName) { nameIn.focus(); toast("Type your name first so teammates know who found what"); return false; } return true; };
+    mk("Start a team game", () => {
+      if (!needName()) return;
+      const L = "ABCDEFGHJKLMNPQRSTUVWXYZ"; let c = ""; for (let i = 0; i < 4; i++) c += L[Math.floor(Math.random() * L.length)];
+      if (joinTeam(c)) setTimeout(openInvite, 50);
+    }, "primary");
+    const inp = document.createElement("input"); inp.id = "teamCode"; inp.maxLength = 4; inp.placeholder = "CODE"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Team code");
+    row.appendChild(inp);
+    mk("Join", e => { if (!needName()) return; const b = e.currentTarget; b.textContent = "Joining…"; b.classList.add("busy"); if (!joinTeam(inp.value)) { b.textContent = "Join"; b.classList.remove("busy"); } });
+  }
+
+  /* ---------- invites ---------- */
+  const PAGE_URL = location.origin + location.pathname;
+  const teamLink = code => `${PAGE_URL}#team-${code}`;
+  function drawQR(text) {
+    const box = $("#qr");
+    if (typeof qrcode !== "function") { box.textContent = "QR code couldn't load. Use the code instead."; return; }
+    const q = qrcode(0, "M"); q.addData(text); q.make();
+    const n = q.getModuleCount(); let d = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+    box.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path d="${d}" fill="#111"/></svg>`;
+  }
+  function openInvite() {
+    if (!team) return;
+    const link = teamLink(team), msg = `Join my Wordloom team game (code ${team}): ${link}`;
+    $("#invCode").textContent = team; $("#invCode2").textContent = team; $("#invLink").value = link;
+    $("#smsLink").href = "sms:?&body=" + encodeURIComponent(msg);
+    $("#mailLink").href = "mailto:?subject=" + encodeURIComponent("Join my Wordloom team") + "&body=" + encodeURIComponent(msg);
+    $("#waLink").href = "https://wa.me/?text=" + encodeURIComponent(msg);
+    $("#nativeShare").hidden = !navigator.share;
+    drawQR(link);
+    menu.classList.remove("open"); $("#invite").classList.add("open");
+  }
+  const closeInvite = () => { $("#invite").classList.remove("open"); keepFocus(); };
+  $("#inviteBtn").addEventListener("click", openInvite);
+  $("#closeInvite").addEventListener("click", closeInvite);
+  $("#invite").addEventListener("click", e => { if (e.target.id === "invite") closeInvite(); });
+  $("#copyLink").addEventListener("click", e => {
+    const b = e.currentTarget, inp = $("#invLink"); inp.select();
+    const done = ok => { b.textContent = ok ? "Copied ✓" : "Select it and copy by hand"; setTimeout(() => { b.textContent = "Copy link"; }, 1800); };
+    try { navigator.clipboard.writeText(inp.value).then(() => done(true), () => done(false)); } catch (_) { done(false); }
+  });
+  $("#nativeShare").addEventListener("click", e => {
+    const b = e.currentTarget; b.textContent = "Opening…";
+    Promise.resolve().then(() => navigator.share({ title: "Wordloom team " + team, text: `Join my Wordloom team game (code ${team})`, url: teamLink(team) }))
+      .then(() => { b.textContent = "Shared ✓"; }, () => { b.textContent = "Not available here"; b.disabled = true; })
+      .finally(() => setTimeout(() => { b.textContent = "Share…"; }, 1800));
+  });
+  /* opening the page from a team link (#team-ABCD) joins that team */
+  const hashTeam = () => { const m = /^#team-([A-Za-z]{4})$/.exec(location.hash || ""); return m ? m[1].toUpperCase() : null; };
+  window.addEventListener("hashchange", () => { const c = hashTeam(); if (c && c !== team) joinTeam(c); });
+  renderTeam();
+  {
+    let saved = null; try { saved = localStorage.getItem(TEAMKEY); } catch (e) {}
+    const fromLink = hashTeam();
+    if (fromLink) { joinTeam(fromLink); toast(`Joined team ${fromLink}`); if (!myName) setTimeout(() => { menu.classList.add("open"); const n = $("#myName"); if (n) n.focus(); toast("Add your name so teammates know who found what"); }, 600); }
+    else if (saved) joinTeam(saved);
+  }
+
+  renderAll(); fitScreen();
+  requestAnimationFrame(() => { const id = curId; fitScreen(); fit(id); curId = id; renderAll(); });
+})();
+</script>
+</body>
+</html>
