@@ -126,6 +126,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 .toggle { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; cursor: pointer; min-height: 40px; }
 .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
 #myName { width: 150px; height: 42px; font-family: var(--body); font-weight: 800; font-size: 16px; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
+#pqr { background: #fff; padding: 10px; border-radius: 12px; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; }
+#pqr svg { width: 100%; height: 100%; display: block; }
+#pin { width: 150px; height: 42px; font-family: var(--body); font-weight: 800; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
 #teamCode { width: 120px; height: 42px; font-family: var(--body); font-weight: 800; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; padding: 0 10px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--bg); color: var(--ink); }
 .code { font-family: var(--display); font-size: 26px; letter-spacing: 3px; color: var(--ink); }
 .btn.busy { opacity: .7; }
@@ -215,15 +218,19 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
       <label class="toggle" for="fuzzyBox"><input type="checkbox" id="fuzzyBox" checked> <span>Accept plurals and close spellings</span></label>
     </div>
     <div>
-      <h3>Save code</h3>
-      <p style="margin-bottom:8px">Progress saves in this browser by itself. To carry it to another device, copy this code and load it there.</p>
-      <textarea id="saveBox" readonly aria-label="Save code"></textarea>
-      <div class="row" style="margin-top:8px"><button class="btn" id="copyBtn" type="button">Copy code</button></div>
-    </div>
-    <div>
-      <h3>Load a save code</h3>
-      <textarea id="loadBox" placeholder="Paste a save code here" aria-label="Paste save code"></textarea>
-      <div class="row" style="margin-top:8px"><button class="btn" id="loadBtn" type="button">Load code</button></div>
+      <h3>Your progress on other devices</h3>
+      <p style="margin-bottom:8px">Your progress saves to this link code by itself. Open the link or scan the code on another phone or computer to pick up where you left off.</p>
+      <div class="invgrid">
+        <div class="qrbox"><div id="pqr" aria-label="QR code for your progress link"></div></div>
+        <div class="remote">
+          <div class="code" id="pcode"></div>
+          <input id="plink" readonly aria-label="Your progress link">
+          <div class="row"><button class="btn" id="pcopy" type="button">Copy link</button></div>
+          <p class="small">Have a code from another device?</p>
+          <div class="row"><input id="pin" maxlength="11" placeholder="ABCDE-23456" autocomplete="off" aria-label="Code from another device"><button class="btn" id="puse" type="button">Use code</button></div>
+          <p class="small" id="pstatus" aria-live="polite"></p>
+        </div>
+      </div>
     </div>
     <div>
       <h3>Start over</h3>
@@ -554,7 +561,7 @@ function createGame(world, saved) {
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const cur = () => game.byId(curId);
   const titleOf = id => game.byId(id).title;
-  function persist() { try { const o = (team && soloState) ? Object.assign({}, soloState) : game.snapshot(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
+  function persist() { try { schedulePush(); } catch (e) {} try { const o = (team && soloState) ? Object.assign({}, soloState) : game.snapshot(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
 
   /* keep the app exactly the size of the visible screen, so the keyboard can't scroll the controls away */
   function fitScreen() {
@@ -772,29 +779,20 @@ function createGame(world, saved) {
   /* menu */
   let resetArmed = false;
   $("#menuBtn").addEventListener("click", () => {
-    $("#saveBox").value = game.exportCode(); $("#loadBox").value = "";
+    renderPlayer();
     resetArmed = false; $("#resetBtn").textContent = "Erase all progress"; $("#resetBtn").classList.remove("bad");
     menu.classList.add("open");
   });
   const closeMenu = () => { menu.classList.remove("open"); keepFocus(); };
   $("#closeMenu").addEventListener("click", closeMenu);
   menu.addEventListener("click", e => { if (e.target === menu) closeMenu(); });
-  $("#copyBtn").addEventListener("click", () => {
-    const box = $("#saveBox"), b = $("#copyBtn"); box.select();
-    const done = ok => { b.textContent = ok ? "Copied ✓" : "Select it and copy by hand"; setTimeout(() => { b.textContent = "Copy code"; }, 1600); };
-    try { navigator.clipboard.writeText(box.value).then(() => done(true), () => done(false)); } catch (e) { done(false); }
-  });
-  $("#loadBtn").addEventListener("click", () => {
-    const b = $("#loadBtn"), ok = game.importCode($("#loadBox").value);
-    b.textContent = ok ? "Loaded ✓" : "That code didn't work"; setTimeout(() => { b.textContent = "Load code"; }, 1600);
-    if (ok) { curId = startId; sel = null; persist(); renderAll(); fit(); $("#saveBox").value = game.exportCode(); }
-  });
   $("#resetBtn").addEventListener("click", () => {
     const b = $("#resetBtn");
     if (team) { b.textContent = "Leave the team game first"; setTimeout(() => { b.textContent = "Erase all progress"; }, 1600); return; }
     if (!resetArmed) { resetArmed = true; b.textContent = "Tap again to erase everything"; b.classList.add("bad"); return; }
     game.reset(); curId = startId; sel = null; resetArmed = false; persist(); renderAll(); fit();
-    b.textContent = "Erased ✓"; b.classList.remove("bad"); $("#saveBox").value = game.exportCode();
+    resetPlayer();
+    b.textContent = "Erased ✓"; b.classList.remove("bad");
     setTimeout(() => { b.textContent = "Erase all progress"; }, 1600);
   });
 
@@ -902,8 +900,8 @@ function createGame(world, saved) {
   /* ---------- invites ---------- */
   const PAGE_URL = location.origin + location.pathname;
   const teamLink = code => `${PAGE_URL}#team-${code}`;
-  function drawQR(text) {
-    const box = $("#qr");
+  function drawQR(text, box) {
+    box = box || $("#qr");
     if (typeof qrcode !== "function") { box.textContent = "QR code couldn't load. Use the code instead."; return; }
     const q = qrcode(0, "M"); q.addData(text); q.make();
     const n = q.getModuleCount(); let d = "";
@@ -940,6 +938,78 @@ function createGame(world, saved) {
   const hashTeam = () => { const m = /^#team-([A-Za-z]{4})$/.exec(location.hash || ""); return m ? m[1].toUpperCase() : null; };
   window.addEventListener("hashchange", () => { const c = hashTeam(); if (c && c !== team) joinTeam(c); });
   renderTeam();
+
+  /* ---------- your progress on other devices ----------
+     Solo progress (not team games) is saved under a random link code through /api/player. The server merges,
+     so every device that uses the code ends up with every word found on any of them. */
+  const PLAYERKEY = "wordloom.player", PL = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const newId = () => { let c = ""; const a = new Uint32Array(10); (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.random() * 4e9; }); a.forEach(n => { c += PL[n % PL.length]; }); return c; };
+  let playerId = null; try { playerId = localStorage.getItem(PLAYERKEY); } catch (e) {}
+  if (!/^[A-Z2-9]{10}$/.test(playerId || "")) { playerId = newId(); try { localStorage.setItem(PLAYERKEY, playerId); } catch (e) {} }
+  const prettyId = id => id.slice(0, 5) + "-" + id.slice(5);
+  const playerLink = () => `${location.origin}${location.pathname}#player-${playerId}`;
+  const soloNow = () => (team && soloState) ? soloState : game.snapshot();
+  function applySolo(st) {
+    if (team) { soloState = { s: st.s, h: st.h }; persistLocal(); return; }
+    const before = game.count();
+    game.setState(st.s, st.h); persistLocal(); renderAll();
+    if (game.count() > before && before > 0) toast(`Picked up ${game.count() - before} words from your other device`);
+  }
+  function persistLocal() { try { const o = soloNow(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
+  const merge = (a, b) => { const h = Object.assign({}, a.h || {}); Object.keys(b.h || {}).forEach(k => { h[k] = Math.max(h[k] | 0, b.h[k] | 0); }); return { s: [...new Set((a.s || []).concat(b.s || []))], h }; };
+  let pushTimer = null, syncOK = null;
+  function setSyncStatus(t) { const el = $("#pstatus"); if (el) el.textContent = t; }
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 1500); }
+  async function pushNow() {
+    try {
+      const r = await fetch("/api/player", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: playerId, state: soloNow() }) });
+      if (!r.ok) throw new Error(r.status);
+      const merged = await r.json(); syncOK = true; setSyncStatus("Saved to your link code.");
+      const mine = soloNow();
+      if (merged.s.length > mine.s.length) applySolo(merge(mine, merged));
+    } catch (e) { syncOK = false; setSyncStatus("Couldn't save online just now. Your progress is still on this device."); }
+  }
+  async function pullNow() {
+    try {
+      const r = await fetch(`/api/player?id=${playerId}`, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const remote = await r.json(), mine = soloNow(), merged = merge(mine, remote);
+      if (merged.s.length > mine.s.length || JSON.stringify(merged.h) !== JSON.stringify(mine.h || {})) applySolo(merged);
+      if (merged.s.length > remote.s.length) pushNow(); else { syncOK = true; setSyncStatus("Saved to your link code."); }
+    } catch (e) { syncOK = false; setSyncStatus("Couldn't reach the server. Your progress is still on this device."); }
+  }
+  function usePlayer(id, fromLink) {
+    id = String(id || "").toUpperCase().replace(/[^A-Z2-9]/g, "");
+    if (!/^[A-Z2-9]{10}$/.test(id)) { setSyncStatus("Codes are 10 letters and numbers, like ABCDE-23456."); return false; }
+    if (id === playerId) { setSyncStatus("That's already this device's code."); return true; }
+    playerId = id; try { localStorage.setItem(PLAYERKEY, id); } catch (e) {}
+    renderPlayer(); pullNow();
+    toast(fromLink ? "Linked this device to your progress" : "Now using that code");
+    return true;
+  }
+  async function resetPlayer() {
+    try { await fetch("/api/player", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: playerId, reset: true }) }); } catch (e) {}
+  }
+  function renderPlayer() {
+    $("#pcode").textContent = prettyId(playerId); $("#plink").value = playerLink(); drawQR(playerLink(), $("#pqr"));
+    if (syncOK === true) setSyncStatus("Saved to your link code.");
+  }
+  $("#pcopy").addEventListener("click", e => {
+    const b = e.currentTarget, inp = $("#plink"); inp.select();
+    const done = ok => { b.textContent = ok ? "Copied ✓" : "Select it and copy by hand"; setTimeout(() => { b.textContent = "Copy link"; }, 1800); };
+    try { navigator.clipboard.writeText(inp.value).then(() => done(true), () => done(false)); } catch (_) { done(false); }
+  });
+  $("#puse").addEventListener("click", e => {
+    const b = e.currentTarget; b.textContent = "Loading…";
+    usePlayer($("#pin").value, false);
+    setTimeout(() => { b.textContent = "Use code"; }, 1200);
+  });
+  {
+    const m = /^#player-([A-Za-z2-9]{10})$/.exec(location.hash || "");
+    if (m) { usePlayer(m[1], true); try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+    else pullNow();
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pullNow(); });
   {
     let saved = null; try { saved = localStorage.getItem(TEAMKEY); } catch (e) {}
     const fromLink = hashTeam();
