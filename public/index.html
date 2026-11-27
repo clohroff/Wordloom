@@ -688,7 +688,10 @@ function createGame(world, saved, opts) {
     }
     return prev[b.length];
   };
-  const reachable = () => { const s = new Set(); boards.forEach(b => { if (g.isUnlocked(b)) g.visible(b).forEach(k => { if (!solved[k]) s.add(k); }); }); return s; };
+  /* g.only = a board id: guesses count on that board alone (the daily puzzle plays one day at a time) */
+  g.only = null;
+  const inPlay = b => g.isUnlocked(b) && (!g.only || b.id === g.only);
+  const reachable = () => { const s = new Set(); boards.forEach(b => { if (inPlay(b)) g.visible(b).forEach(k => { if (!solved[k]) s.add(k); }); }); return s; };
   g.match = raw => {
     const q = norm(raw);
     if (!q) return null;
@@ -717,8 +720,9 @@ function createGame(world, saved, opts) {
     const m = g.match(raw);
     if (!m) return { r: "wrong" };
     const key = m.key;
+    if (g.only && !boards.some(b => b.id === g.only && b.byKey[key])) return { r: "wrong" };   /* a word from another day */
     if (solved[key]) return { r: "already", key };
-    const live = boards.filter(b => g.isUnlocked(b) && g.visible(b).has(key));
+    const live = boards.filter(b => inPlay(b) && g.visible(b).has(key));
     if (!live.length) return { r: "early", key };
     const before = state(); solved[key] = true; const after = state();
     const fresh = {}, unlocked = [], completed = [];
@@ -1004,6 +1008,7 @@ function createGame(world, saved, opts) {
   $("#guessbar").addEventListener("submit", e => { e.preventDefault(); submitGuess(); });
   function submitGuess() {
     if (mode === "daily" && !(daily && daily.game)) { guessEl.value = ""; toast("The daily puzzle isn't open yet. Try Explore meanwhile."); return; }
+    game.only = mode === "daily" ? curId : null;
     const res = game.guess(guessEl.value);
     if (res.r === "empty") { shakeInput(); return; }
     guessEl.value = "";
