@@ -707,6 +707,7 @@ function createGame(world, saved, opts) {
       let d = 9;
       const sorted = s => s.split("").sort().join("");
       variants(q).forEach(v => {
+        if (v[0] !== f[0]) return;   /* a close spelling still has to start with the right letter */
         if (f.length < 5 && (v.length !== f.length || sorted(v) !== sorted(f))) return; /* short words: swapped letters only */
         d = Math.min(d, edits(v, f, max));
       });
