@@ -116,22 +116,39 @@ const MONTHS = {
  }
 };
 
+import { getStore } from "@netlify/blobs";
+
 const json = (body, status = 200, cache = "no-store") =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": cache } });
 const pad = (n) => String(n).padStart(2, "0");
+export const isTester = (key) => !!(key && process.env.TESTER_KEY && key === process.env.TESTER_KEY);
+
+/* days approved for players in the review page (/review.html) */
+async function approvedDays(month) {
+  try { const v = await getStore({ name: "tangents-review", consistency: "strong" }).get(`${month}/days`, { type: "json" }); return (v && v.ok) || {}; }
+  catch (e) { return {}; }
+}
 
 export default async (req) => {
   const url = new URL(req.url);
   const month = url.searchParams.get("month") || "";
+  const tester = isTester(url.searchParams.get("key") || "");
   if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: "Bad month" }, 400);
   const m = MONTHS[month];
   const [y, mo] = month.split("-").map(Number);
   const days = new Date(Date.UTC(y, mo, 0)).getUTCDate();
-  if (!m) return json({ month, days, titles: {}, spots: {}, boards: [], released: 0 }, 200, "public, max-age=300");
+  if (!m) return json({ month, days, titles: {}, spots: {}, boards: [], released: 0, tester }, 200, tester ? "no-store" : "public, max-age=300");
+  const ok = await approvedDays(month);
+  const approved = (b) => !!(b.approved || ok[b.day]);
+  if (tester) {   /* testers see every built day, approved or not, whatever the date */
+    const boards = m.boards.map((b) => Object.assign({}, b, { approved: approved(b) }));
+    return json({ month, days, titles: m.titles, spots: m.spots, boards, released: days, tester: true });
+  }
   const first = new Date(Date.now() + 14 * 3600e3);   // the date in the earliest time zone
   const here = `${first.getUTCFullYear()}-${pad(first.getUTCMonth() + 1)}`;
   const released = here > month ? days : here < month ? 0 : first.getUTCDate();
-  const boards = m.boards.filter((b) => b.day <= released);
+  /* a day reaches players once its date has begun somewhere and it has been approved */
+  const boards = m.boards.filter((b) => b.day <= released && approved(b)).map(({ approved: _a, ...b }) => b);
   return json({ month, days, titles: m.titles, spots: m.spots, boards, released }, 200, "public, max-age=60");
 };
 
