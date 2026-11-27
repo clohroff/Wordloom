@@ -39,6 +39,34 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); }
 #bar { display: flex; align-items: center; gap: 10px; }
 #bar h1 { font-family: var(--display); font-size: 18px; margin: 0; white-space: nowrap; }
 #bar .btn { height: 36px; padding: 0 12px; font-size: 14px; }
+/* daily / explore switch */
+.modes { display: inline-flex; border: 2px solid var(--line-strong); border-radius: 10px; overflow: hidden; flex: none; }
+.modes button { border: 0; background: var(--panel); color: var(--ink); font: 800 13px var(--body); padding: 0 10px; height: 32px; cursor: pointer; transition: background-color .1s, transform .08s; }
+.modes button + button { border-left: 2px solid var(--line-strong); }
+.modes button.on { background: var(--accent); color: var(--accent-ink); }
+.modes button:active, .modes button.is-pressed { transform: scale(.94); }
+@media (max-width: 560px) { #bar h1 { display: none; } }
+#clock { flex: none; font-weight: 800; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#clock.done { color: var(--good-edge); }
+#dailyEmpty { position: absolute; inset: 0; background: var(--bg); display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; z-index: 4; }
+#dailyEmpty.show { display: flex; }
+.empty { max-width: 380px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.empty h2 { font-family: var(--display); font-size: 24px; margin: 0; }
+.empty p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.empty .big { font: 600 34px var(--display); font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--bg); border-radius: 12px; padding: 10px 4px; text-align: center; min-width: 0; }
+.stat b { display: block; font: 600 22px var(--display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); font-weight: 800; }
+.sharebox { background: var(--bg); border-radius: 12px; padding: 12px; font: 700 15px/1.5 var(--body); white-space: pre-wrap; margin: 0; }
+.lockhub rect { fill: var(--panel); fill-opacity: .6; stroke: var(--line-strong); stroke-width: 2.5; stroke-dasharray: 8 6; }
+.lockhub text { font-family: var(--display); font-size: 18px; fill: var(--muted); text-anchor: middle; dominant-baseline: central; }
+.lockhub text.sub { font-family: var(--body); font-size: 13px; font-weight: 800; }
+.dots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; max-width: 320px; }
+.dot { height: 30px; border-radius: 8px; border: 2px solid var(--line); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: var(--muted); }
+.dot.ok { background: var(--good); border-color: var(--good-edge); color: var(--good-ink); }
+.dot.late { background: var(--hidden); border-color: var(--hidden-edge); color: var(--hidden-ink); }
+.dot.now { border-color: var(--ink); }
 #menuBtn { width: 40px; padding: 0 !important; font-size: 20px !important; line-height: 1; }
 #where { font-weight: 800; color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; font-variant-numeric: tabular-nums; }
 #where b { color: var(--ink); }
@@ -119,6 +147,7 @@ body.touch #kb { display: flex; }
 .tile.done { border-color: var(--good-edge); }
 .tile.lock { border-style: dashed; background: transparent; color: var(--muted); cursor: default; font-size: 20px; }
 .tile:active, .tile.is-pressed { transform: scale(.94); }
+.tile.lock.soonday { font-size: 13px; color: var(--muted); }
 .chip { flex: none; height: 38px; border-radius: 19px; padding: 0 14px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
   font-family: var(--body); font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform .08s, background-color .12s; }
 .chip small { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -172,7 +201,12 @@ body.touch #kb { display: flex; }
   <div id="top">
     <div class="wrap" id="bar">
       <h1>Tangents</h1>
+      <div class="modes" role="group" aria-label="Which puzzle">
+        <button type="button" data-mode="daily">Daily</button>
+        <button type="button" data-mode="explore" class="on">Explore</button>
+      </div>
       <div id="where" aria-live="polite"></div>
+      <div id="clock" aria-label="Time on today's board"></div>
       <button class="btn primary" id="inviteBtn" type="button" hidden aria-label="Invite to your team">Team</button>
       <button class="btn" id="menuBtn" type="button" aria-label="Menu">&#9776;</button>
     </div>
@@ -185,6 +219,7 @@ body.touch #kb { display: flex; }
     </div>
     <div id="soon"></div>
     <div id="toast" role="status"></div>
+    <div id="dailyEmpty"><div class="empty" id="emptyBody"></div></div>
   </div>
   <div id="dock">
     <div class="wrap" id="clue">
@@ -202,11 +237,11 @@ body.touch #kb { display: flex; }
 <div id="mapSheet" class="overlay" role="dialog" aria-modal="true" aria-label="Boards">
   <div class="sheet">
     <div class="row" style="justify-content: space-between;">
-      <h2>Boards</h2>
+      <h2 id="mapHead">Boards</h2>
       <button class="btn" id="closeMap" type="button">Close</button>
     </div>
     <div id="boards" class="map"></div>
-    <p class="small">Boards sit side by side on one big map. Tap one to jump to it. Dashed squares are boards you haven't reached yet.</p>
+    <p class="small" id="mapNote">Boards sit side by side on one big map. Tap one to jump to it. Dashed squares are boards you haven't reached yet.</p>
   </div>
 </div>
 
@@ -241,15 +276,43 @@ body.touch #kb { display: flex; }
   </div>
 </div>
 
+<div id="result" class="overlay" role="dialog" aria-modal="true" aria-label="Day finished">
+  <div class="sheet">
+    <div class="row" style="justify-content: space-between;">
+      <h2 id="resTitle"></h2>
+      <button class="btn" id="closeResult" type="button">Close</button>
+    </div>
+    <div class="stats" id="resStats"></div>
+    <p id="resNote"></p>
+    <pre class="sharebox" id="resText"></pre>
+    <div class="row">
+      <button class="btn primary" id="resShare" type="button" hidden>Share…</button>
+      <button class="btn" id="resCopy" type="button">Copy</button>
+    </div>
+    <div class="row">
+      <a class="btn linkbtn" id="resX" href="#" target="_blank" rel="noopener">X</a>
+      <a class="btn linkbtn" id="resFb" href="#" target="_blank" rel="noopener">Facebook</a>
+      <a class="btn linkbtn" id="resWa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn linkbtn" id="resSms" href="#" target="_blank" rel="noopener">Text</a>
+    </div>
+  </div>
+</div>
+
 <div id="menu" role="dialog" aria-modal="true" aria-label="Menu">
   <div class="sheet">
     <div class="row" style="justify-content: space-between;">
       <h2>How to play</h2>
       <button class="btn" id="closeMenu" type="button">Close</button>
     </div>
+    <p><b>Daily</b> opens a new board every day at midnight, all month long. Finish a day's board to complete it; finish it on its own day to keep your streak going. You can go back and play any earlier day this month. Words that connect to tomorrow's board sit on the edge facing it. <b>Explore</b> is the big open map you can play any time.</p>
     <p>Each orange box hides a word; the number is how many letters it has. Lines join related words, and a word sitting between two others connects them both. Find a word and its neighbours appear. The further you get from the middle, the further the words wander from the topic.</p>
     <p>Purple words sit on the edge of the board. Finding one opens a whole new board, which gives you another place to start when you're stuck.</p>
     <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, then Letter as many times as you need. Each tap shows one more letter, all the way to the whole word. Drag to move around and pinch to zoom. Boards shows a map of every board you've opened.</p>
+    <div id="monthBox" hidden>
+      <h3 id="monthHead">Your month</h3>
+      <p id="monthTxt" style="margin-bottom:8px"></p>
+      <div class="dots" id="monthDots"></div>
+    </div>
     <div>
       <h3>Play together</h3>
       <p id="teamTxt" style="margin-bottom:8px"></p>
@@ -258,6 +321,7 @@ body.touch #kb { display: flex; }
     <div>
       <h3>Settings</h3>
       <label class="toggle" for="fuzzyBox"><input type="checkbox" id="fuzzyBox" checked> <span>Accept plurals and close spellings</span></label>
+      <label class="toggle" for="timerBox"><input type="checkbox" id="timerBox" checked> <span>Show a timer on daily puzzles</span></label>
     </div>
     <div>
       <h3>Your progress on other devices</h3>
@@ -555,7 +619,7 @@ function layoutWorld(boards) {
   });
 }
 
-function createGame(world, saved) {
+function createGame(world, saved, opts) {
   const { boards, clues } = parseWorld(world);
   layoutWorld(boards);
   const alias = {}, keys = new Set(), homes = {};
@@ -573,7 +637,8 @@ function createGame(world, saved) {
   g.byId = id => boards.find(b => b.id === id);
   g.isExit = key => homes[key] && homes[key].length > 1;
   g.exitsTo = (key, fromId) => (homes[key] || []).filter(id => id !== fromId);
-  g.isUnlocked = b => b.start || b.nodes.some(n => solved[n.key]);
+  /* a board opens when you find a word on it; the daily month opens a board when its date arrives instead */
+  g.isUnlocked = b => (opts && opts.open) ? opts.open(b) : (b.start || b.nodes.some(n => solved[n.key]));
   g.visible = b => {
     const v = new Set();
     b.nodes.forEach(n => {
@@ -685,15 +750,18 @@ function createGame(world, saved) {
   const LS = "wordloom.v3";
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(LS)); } catch (e) {}
-  const game = createGame(WORLD, saved);
-  const startId = game.boards.find(b => b.start).id;
+  const exploreGame = createGame(WORLD, saved);
+  let game = exploreGame, mode = "explore";              /* the daily month swaps itself in when it's chosen */
+  let startId = game.boards.find(b => b.start).id;
   let curId = (saved && game.byId(saved.cur) && game.isUnlocked(game.byId(saved.cur))) ? saved.cur : startId;
+  let exploreCur = curId;
+  let daily = null;   /* the daily month once loaded: { month, days, titles, spots, game, meta: {d, t}, dayNum, cur, next } */
   let sel = null, fresh = new Set(), burst = null, newBoards = new Set();
   let vb = { x: -300, y: -300, w: 600, h: 600 };
   const svg = $("#svg"), boardEl = $("#board"), app = $("#app");
   const guessEl = $("#guess"), goBtn = $("#go"), menu = $("#menu"), mapSheet = $("#mapSheet");
-  const OVER = "#menu, #invite, #mapSheet";
-  const overlayOpen = () => menu.classList.contains("open") || $("#invite").classList.contains("open") || mapSheet.classList.contains("open");
+  const OVER = "#menu, #invite, #mapSheet, #result";
+  const overlayOpen = () => ["#menu", "#invite", "#mapSheet", "#result"].some(s => $(s).classList.contains("open"));
   /* touch screens get our own keyboard; the phone's keyboard never opens */
   const TOUCH = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
   if (TOUCH) {
@@ -706,7 +774,7 @@ function createGame(world, saved) {
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const cur = () => game.byId(curId);
   const titleOf = id => game.byId(id).title;
-  function persist() { try { schedulePush(); } catch (e) {} try { const o = (team && soloState) ? Object.assign({}, soloState) : game.snapshot(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
+  function persist() { if (mode === "daily") { persistDaily(); return; } exploreCur = curId; try { schedulePush(); } catch (e) {} try { const o = (team && soloState) ? Object.assign({}, soloState) : game.snapshot(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
 
   /* keep the app exactly the size of the visible screen, so the keyboard can't scroll the controls away */
   function fitScreen() {
@@ -754,7 +822,7 @@ function createGame(world, saved) {
     });
     let stars = "";
     if (burst) { const n = nodeOf(burst); if (n) { for (let i = 0; i < 9; i++) stars += `<text class="star" style="--a:${i * 40}deg" x="0" y="0">★</text>`; stars = `<g transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})">${stars}</g>`; } }
-    svg.innerHTML = lines + hubs + boxes + stars;
+    svg.innerHTML = lines + hubs + lockedHub() + boxes + stars;
     renderSoon();
   }
   function renderSoon() {
@@ -772,21 +840,22 @@ function createGame(world, saved) {
   function renderBoards() {
     const open = game.boards.filter(b => game.isUnlocked(b));
     const btn = $("#boardsBtn");
-    btn.textContent = `Boards ${open.length}/${game.boards.length}`;
+    btn.textContent = mode === "daily" ? "Days" : `Boards ${open.length}/${game.boards.length}`;
     btn.classList.toggle("new", newBoards.size > 0);
     /* the map: every open board, plus a dashed square for each unopened board next to one */
     const near = (a, b) => Math.abs(a.at[0] - b.at[0]) + Math.abs(a.at[1] - b.at[1]) === 1;
     const shown = game.boards.filter(b => game.isUnlocked(b) || open.some(o => near(o, b)));
-    const xs = shown.map(b => b.at[0]), ys = shown.map(b => b.at[1]);
+    const extra = mode === "daily" ? dailyExtraSpots() : [];
+    const xs = shown.map(b => b.at[0]).concat(extra.map(e => e.at[0])), ys = shown.map(b => b.at[1]).concat(extra.map(e => e.at[1]));
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const el = $("#boards");
     el.style.gridTemplateColumns = `repeat(${x1 - x0 + 1}, minmax(0, 104px))`;
     el.innerHTML = shown.map(b => {
       const pos = `grid-column:${b.at[0] - x0 + 1};grid-row:${b.at[1] - y0 + 1}`;
       if (!game.isUnlocked(b)) return `<div class="tile lock" style="${pos}" aria-label="A board you haven't reached yet">?</div>`;
-      const p = game.progress(b), done = !b.soon && p.done === p.of;
-      return `<button type="button" class="tile${b.id === curId ? " cur" : ""}${done ? " done" : ""}" style="${pos}" data-board="${b.id}">${esc(b.title)}<small>${b.soon ? "soon" : p.done + "/" + p.of}${done ? " ★" : ""}</small></button>`;
-    }).join("");
+      const p = game.progress(b), done = !b.soon && p.done === p.of, dl = mode === "daily" ? `Dec ${b.id.slice(1)} · ` : "";
+      return `<button type="button" class="tile${b.id === curId ? " cur" : ""}${done ? " done" : ""}" style="${pos}" data-board="${b.id}">${esc(dl + b.title)}<small>${b.soon ? "soon" : p.done + "/" + p.of}${done ? " ★" : ""}</small></button>`;
+    }).join("") + extra.map(e => `<div class="tile lock soonday" style="grid-column:${e.at[0] - x0 + 1};grid-row:${e.at[1] - y0 + 1}">${esc(e.label)}<small>${esc(e.sub)}</small></div>`).join("");
   }
   function letters(n) {
     const parts = n.show.split(" ").map(w => w.replace(/[^A-Za-z]/g, "").length);
@@ -815,7 +884,8 @@ function createGame(world, saved) {
   }
   function renderWhere() {
     const p = game.progress(cur());
-    $("#where").innerHTML = `${esc(cur().title)} <b>${p.done}/${p.of}</b>`;
+    if (mode === "daily") { renderDailyWhere(); return; }
+    $("#where").innerHTML = `${esc(cur().title)} <b>${p.done}/${p.of}</b>`; $("#clock").textContent = "";
   }
   function renderAll() { renderBoard(); renderBoards(); renderClue(); renderWhere(); }
 
@@ -922,6 +992,7 @@ function createGame(world, saved) {
   function shakeInput() { guessEl.classList.remove("shake"); void guessEl.offsetWidth; guessEl.classList.add("shake"); }
   $("#guessbar").addEventListener("submit", e => { e.preventDefault(); submitGuess(); });
   function submitGuess() {
+    if (mode === "daily" && !(daily && daily.game)) { guessEl.value = ""; toast("The daily puzzle isn't open yet. Try Explore meanwhile."); return; }
     const res = game.guess(guessEl.value);
     if (res.r === "empty") { shakeInput(); return; }
     guessEl.value = "";
@@ -935,7 +1006,7 @@ function createGame(world, saved) {
     const shown = game.boards.find(b => b.byKey[res.key]).byKey[res.key].show;
     if (res.fuzzy) toast(`Close enough: “${shown}”`);
     res.unlocked.forEach(id => toast(`New board: ${titleOf(id)}`));
-    res.completed.forEach(id => toast(`${titleOf(id)} complete ★`));
+    if (mode === "daily") checkDailyDone(); else res.completed.forEach(id => toast(`${titleOf(id)} complete ★`));
     renderAll();
     const off = f.some(k => { const n = nodeOf(k); return n && (n.x - n.w / 2 < vb.x || n.x + n.w / 2 > vb.x + vb.w || n.y - n.h / 2 < vb.y || n.y + n.h / 2 > vb.y + vb.h); });
     if (off) fit(curId);
@@ -990,7 +1061,7 @@ function createGame(world, saved) {
     const b = $("#resetBtn");
     if (team) { b.textContent = "Leave the team game first"; setTimeout(() => { b.textContent = "Erase all progress"; }, 1600); return; }
     if (!resetArmed) { resetArmed = true; b.textContent = "Tap again to erase everything"; b.classList.add("bad"); return; }
-    game.reset(); curId = startId; sel = null; resetArmed = false; persist(); renderAll(); fit();
+    exploreGame.reset(); exploreCur = exploreGame.boards.find(x => x.start).id; if (mode === "explore") { curId = exploreCur; sel = null; renderAll(); fit(); } resetArmed = false; persistLocal();
     resetPlayer();
     b.textContent = "Erased ✓"; b.classList.remove("bad");
     setTimeout(() => { b.textContent = "Erase all progress"; }, 1600);
@@ -999,7 +1070,7 @@ function createGame(world, saved) {
 
   /* ---------- settings ---------- */
   const SETTINGS = "wordloom.settings";
-  let settings = { fuzzy: true };
+  let settings = { fuzzy: true, timer: true };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS)) || {}); } catch (e) {}
   game.fuzzy = settings.fuzzy !== false;
   const fuzzyBox = $("#fuzzyBox"); fuzzyBox.checked = game.fuzzy;
@@ -1016,15 +1087,15 @@ function createGame(world, saved) {
     const hints = Object.assign({}, teamHints); Object.keys(pendingHints).forEach(k => { if ((teamHints[k] | 0) >= pendingHints[k]) delete pendingHints[k]; else hints[k] = pendingHints[k]; });
     const state = JSON.stringify([[...keys].sort(), hints]);
     if (state === lastState) return; lastState = state;
-    const before = new Set(Object.keys(game.solved));
-    game.setState([...keys], hints);
-    const added = Object.keys(game.solved).filter(k => !before.has(k));
+    const before = new Set(Object.keys(exploreGame.solved));
+    exploreGame.setState([...keys], hints);
+    const added = Object.keys(exploreGame.solved).filter(k => !before.has(k));
     if (added.length && !firstSnap) {
       fresh = new Set(added);
       added.forEach(k => { const who = teamFound[k]; if (who && who !== myName) toast(`${who} found “${nodeOf(k).show}”`); });
       setTimeout(() => { fresh = new Set(); renderBoard(); }, 900);
     }
-    firstSnap = false; renderAll();
+    firstSnap = false; if (mode === "explore") renderAll();
   }
   async function pull() {
     if (!team || document.hidden) return;
@@ -1041,32 +1112,33 @@ function createGame(world, saved) {
   function startPolling() { clearInterval(pollTimer); pull(); pollTimer = setInterval(pull, 3000); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && team) pull(); });
   function joinTeam(code) {
+    if (mode !== "explore") setMode("explore");
     code = String(code || "").toUpperCase().replace(/[^A-Z]/g, "");
     if (code.length !== 4) { toast("Team codes are 4 letters"); return false; }
-    if (!team) soloState = game.snapshot();
+    if (!team) soloState = exploreGame.snapshot();
     team = code; teamFound = {}; teamHints = {}; pending.clear(); firstSnap = true; lastState = "";
     try { localStorage.setItem(TEAMKEY, code); } catch (e) {}
-    game.setState([], {}); renderAll(); renderTeam(); startPolling();
+    exploreGame.setState([], {}); renderAll(); renderTeam(); startPolling();
     return true;
   }
   function leaveTeam() {
     clearInterval(pollTimer); team = null;
     try { localStorage.removeItem(TEAMKEY); } catch (e) {}
     try { if (/^#team-/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-    game.setState(soloState ? soloState.s : [], soloState ? soloState.h : {}); soloState = null;
-    persist(); renderAll(); renderTeam(); fit(curId);
+    exploreGame.setState(soloState ? soloState.s : [], soloState ? soloState.h : {}); soloState = null;
+    persist(); if (mode === "explore") { renderAll(); fit(curId); } renderTeam();
   }
   function post(body) {
     return fetch("/api/team", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ code: team }, body)) })
       .then(r => { if (!r.ok) throw new Error(r.status); });
   }
   function shareFound(key) {
-    if (!team) return; pending.add(key);
+    if (!team || mode !== "explore") return; pending.add(key);
     post({ type: "found", word: key, name: myName }).catch(() => toast("Couldn't send that word to your team. It'll stay on your screen."));
   }
   function shareHint(key) {
-    if (!team) return; pendingHints[key] = game.hints[key] | 0;
-    post({ type: "hint", word: key, tier: game.hints[key] | 0 }).catch(() => {});
+    if (!team || mode !== "explore") return; pendingHints[key] = exploreGame.hints[key] | 0;
+    post({ type: "hint", word: key, tier: exploreGame.hints[key] | 0 }).catch(() => {});
   }
   function saveName(v) { myName = String(v || "").trim().slice(0, 20); try { localStorage.setItem(NAMEKEY, myName); } catch (e) {} }
   function renderTeam() {
@@ -1148,14 +1220,14 @@ function createGame(world, saved) {
   if (!/^[A-Z2-9]{10}$/.test(playerId || "")) { playerId = newId(); try { localStorage.setItem(PLAYERKEY, playerId); } catch (e) {} }
   const prettyId = id => id.slice(0, 5) + "-" + id.slice(5);
   const playerLink = () => `${location.origin}${location.pathname}#player-${playerId}`;
-  const soloNow = () => (team && soloState) ? soloState : game.snapshot();
+  const soloNow = () => (team && soloState) ? soloState : exploreGame.snapshot();
   function applySolo(st) {
     if (team) { soloState = { s: st.s, h: st.h }; persistLocal(); return; }
-    const before = game.count();
-    game.setState(st.s, st.h); persistLocal(); renderAll();
-    if (game.count() > before && before > 0) toast(`Picked up ${game.count() - before} words from your other device`);
+    const before = exploreGame.count();
+    exploreGame.setState(st.s, st.h); persistLocal(); if (mode === "explore") renderAll();
+    if (exploreGame.count() > before && before > 0 && mode === "explore") toast(`Picked up ${exploreGame.count() - before} words from your other device`);
   }
-  function persistLocal() { try { const o = soloNow(); o.cur = curId; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
+  function persistLocal() { try { const o = soloNow(); o.cur = mode === "explore" ? curId : exploreCur; localStorage.setItem(LS, JSON.stringify(o)); } catch (e) {} }
   const merge = (a, b) => { const h = Object.assign({}, a.h || {}); Object.keys(b.h || {}).forEach(k => { h[k] = Math.max(h[k] | 0, b.h[k] | 0); }); return { s: [...new Set((a.s || []).concat(b.s || []))], h }; };
   let pushTimer = null, syncOK = null;
   function setSyncStatus(t) { const el = $("#pstatus"); if (el) el.textContent = t; }
@@ -1183,7 +1255,7 @@ function createGame(world, saved) {
     if (!/^[A-Z2-9]{10}$/.test(id)) { setSyncStatus("Codes are 10 letters and numbers, like ABCDE-23456."); return false; }
     if (id === playerId) { setSyncStatus("That's already this device's code."); return true; }
     playerId = id; try { localStorage.setItem(PLAYERKEY, id); } catch (e) {}
-    renderPlayer(); pullNow();
+    renderPlayer(); pullNow(); if (daily) dailyPull();
     toast(fromLink ? "Linked this device to your progress" : "Now using that code");
     return true;
   }
@@ -1209,13 +1281,273 @@ function createGame(world, saved) {
     if (m) { usePlayer(m[1], true); try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
     else pullNow();
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) pullNow(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { pullNow(); if (daily) dailyPull(); } });
   {
     let saved = null; try { saved = localStorage.getItem(TEAMKEY); } catch (e) {}
     const fromLink = hashTeam();
     if (fromLink) { joinTeam(fromLink); toast(`Joined team ${fromLink}`); if (!myName) setTimeout(() => { menu.classList.add("open"); const n = $("#myName"); if (n) n.focus(); toast("Add your name so teammates know who found what"); }, 600); }
     else if (saved) joinTeam(saved);
   }
+
+  /* ---------- daily puzzle ----------
+     One board a day, a month at a time, from /api/daily. The server only sends a day once that date has begun
+     somewhere on Earth; this page then waits for the player's own local midnight. Earlier days this month stay
+     playable. A day is done when every word on its board is found; finishing on its own day keeps the streak. */
+  const MODEKEY = "tangents.mode", DAILYKEY = m => "tangents.daily." + m;
+  const pad2 = n => String(n).padStart(2, "0");
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  /* the date here; ?today=2026-12-03 (or 2026-12-03T23:58) only works when testing on this computer */
+  function now() {
+    const q = /[?&]today=(\d{4}-\d{2}-\d{2})(?:T(\d\d:\d\d(?::\d\d)?))?/.exec(location.search);
+    if (q && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { if (!now.base) { const t = q[2] || "12:00"; now.base = [Date.now(), new Date(q[1] + "T" + t + (t.length === 5 ? ":00" : "")).getTime()]; } return new Date(now.base[1] + Date.now() - now.base[0]); }
+    return new Date();
+  }
+  const monthOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  const dayOf = b => +String(b.id).slice(1);
+  let savedMode = null; try { savedMode = localStorage.getItem(MODEKEY); } catch (e) {}
+
+  const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h}:${pad2(m)}:${pad2(s % 60)}` : `${m}:${pad2(s % 60)}`; };
+  function untilMidnight() {
+    const n = now(), m = new Date(n); m.setHours(24, 0, 0, 0);
+    const s = Math.max(0, Math.round((m - n) / 1000)), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60);
+    return h ? `${h}h ${mi}m` : mi ? `${mi}m` : "under a minute";
+  }
+  const dayName = (month, d) => { const [y, m] = month.split("-").map(Number); const t = new Date(y, m - 1, d); return `${WEEK[t.getDay()]}, ${MONTHS[m - 1].slice(0, 3)} ${d}`; };
+  const shortMon = month => MONTHS[+month.split("-")[1] - 1].slice(0, 3);
+  const monthName = month => MONTHS[+month.split("-")[1] - 1];
+
+  async function fetchMonth(month) {
+    try { const r = await fetch(`/api/daily?month=${month}`, { cache: "no-store" }); if (r.ok) return await r.json(); } catch (e) {}
+    return null;
+  }
+  async function loadDaily() {
+    const n = now(), month = monthOf(n), dayNum = n.getDate();
+    const j = await fetchMonth(month);
+    const boards = j && Array.isArray(j.boards) ? j.boards.filter(b => b.day <= dayNum) : [];
+    let next = null;
+    if (!boards.length) {   /* nothing open yet this month: is next month on its way? */
+      const nm = new Date(n.getFullYear(), n.getMonth() + 1, 1), nj = await fetchMonth(monthOf(nm));
+      if (nj && nj.titles && nj.titles["1"]) next = { month: monthOf(nm), title: nj.titles["1"] };
+      if (j && j.titles && j.titles[String(dayNum)] && !boards.length) next = { month, day: dayNum, title: j.titles[String(dayNum)] };
+    }
+    const prevCur = daily && daily.month === month ? daily.cur : null;
+    daily = { month, days: (j && j.days) || 31, titles: (j && j.titles) || {}, spots: (j && j.spots) || {}, dayNum, game: null, meta: { d: {}, t: {} }, cur: null, next };
+    if (boards.length) {
+      let st = null; try { st = JSON.parse(localStorage.getItem(DAILYKEY(month))); } catch (e) {}
+      try {
+        const world = { boards: boards.map(b => ({ id: "d" + b.day, title: b.title, at: b.at, start: b.day === 1, words: b.words })) };
+        daily.game = createGame(world, st, { open: b => dayOf(b) <= daily.dayNum });
+        daily.game.fuzzy = settings.fuzzy !== false;
+        daily.meta = { d: (st && st.d) || {}, t: (st && st.t) || {} };
+        const want = prevCur || (st && st.cur);
+        const today = daily.game.byId("d" + dayNum) ? "d" + dayNum : "d" + Math.max(...boards.map(b => b.day));
+        daily.cur = prevCur && daily.game.byId(prevCur) ? prevCur : today;
+        if (!prevCur && want && want !== today) daily.cur = today;   /* a new visit always starts on today's board */
+      } catch (e) { daily.game = null; console.error(e); }
+    }
+    return daily;
+  }
+  function persistDaily() {
+    if (!daily || !daily.game) return;
+    try { const o = daily.game.snapshot(); o.d = daily.meta.d; o.t = daily.meta.t; o.cur = mode === "daily" ? curId : daily.cur; localStorage.setItem(DAILYKEY(daily.month), JSON.stringify(o)); } catch (e) {}
+    clearTimeout(persistDaily.timer); persistDaily.timer = setTimeout(dailyPush, 1500);
+  }
+  function dailyState() { const o = daily.game.snapshot(); o.d = daily.meta.d; o.t = daily.meta.t; return o; }
+  function mergeDaily(remote) {
+    const mine = dailyState(), before = daily.game.count();
+    const m = merge(mine, remote);
+    Object.keys(remote.d || {}).forEach(k => { if (!daily.meta.d[k] || remote.d[k].at < daily.meta.d[k].at) daily.meta.d[k] = remote.d[k]; });
+    Object.keys(remote.t || {}).forEach(k => { daily.meta.t[k] = Math.max(daily.meta.t[k] || 0, remote.t[k]); });
+    if (m.s.length > mine.s.length || JSON.stringify(m.h) !== JSON.stringify(mine.h || {})) daily.game.setState(m.s, m.h);
+    try { const o = dailyState(); o.cur = daily.cur; localStorage.setItem(DAILYKEY(daily.month), JSON.stringify(o)); } catch (e) {}
+    if (mode === "daily") { renderAll(); if (daily.game.count() > before && before > 0) toast(`Picked up ${daily.game.count() - before} words from your other device`); }
+  }
+  async function dailyPush() {
+    if (!daily || !daily.game) return;
+    try {
+      const r = await fetch("/api/player", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: playerId, space: daily.month, state: dailyState() }) });
+      if (!r.ok) throw new Error(r.status);
+      const remote = await r.json(); if ((remote.s || []).length > daily.game.count() || Object.keys(remote.d || {}).length > Object.keys(daily.meta.d).length) mergeDaily(remote);
+    } catch (e) {}
+  }
+  async function dailyPull() {
+    if (!daily || !daily.game) return;
+    try { const r = await fetch(`/api/player?id=${playerId}&space=${daily.month}`, { cache: "no-store" }); if (r.ok) mergeDaily(await r.json()); } catch (e) {}
+  }
+
+  /* ---------- switching between Daily and Explore ---------- */
+  function setMode(m) {
+    if (m === "daily" && !daily) return;
+    if (m !== mode) {
+      if (mode === "explore") exploreCur = curId; else if (daily && daily.game) daily.cur = curId;
+      mode = m; sel = null; fresh = new Set(); burst = null; newBoards = new Set();
+      if (m === "daily" && daily.game) { game = daily.game; curId = daily.cur; startId = curId; }
+      else { game = exploreGame; curId = exploreCur; startId = exploreGame.boards.find(b => b.start).id; }
+    }
+    try { localStorage.setItem(MODEKEY, m); } catch (e) {}
+    document.querySelectorAll(".modes [data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+    $("#inviteBtn").hidden = !(team && mode === "explore");
+    $("#mapHead").textContent = mode === "daily" ? `${daily ? monthName(daily.month) : ""} days` : "Boards";
+    $("#mapNote").textContent = mode === "daily" ? "Each day's board sits next to the day before. Tap a day to jump to it; the dashed one opens at midnight." : "Boards sit side by side on one big map. Tap one to jump to it. Dashed squares are boards you haven't reached yet.";
+    renderEmpty(); renderAll(); fit(curId); keepFocus();
+  }
+  document.querySelector(".modes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
+
+  /* what the daily board area shows before a month's first day opens */
+  function renderEmpty() {
+    const el = $("#dailyEmpty"), show = mode === "daily" && !(daily && daily.game);
+    el.classList.toggle("show", show); if (!show) return;
+    const nx = daily && daily.next;
+    let html;
+    if (nx) {
+      const first = nx.day || 1;
+      html = `<h2>${esc(monthName(nx.month))}'s daily puzzle</h2><p>A new board opens every day at midnight. The first, <b>${esc(nx.title)}</b>, opens ${esc(dayName(nx.month, first))}.</p><div class="big" id="emptyCount">${esc(untilMidnightTo(nx.month, first))}</div>`;
+    } else html = `<h2>No daily puzzle right now</h2><p>The next month's boards aren't ready yet. The Explore map is always open.</p>`;
+    html += `<button type="button" class="btn primary" id="toExplore">Play Explore meanwhile</button>`;
+    $("#emptyBody").innerHTML = html;
+    $("#toExplore").addEventListener("click", () => setMode("explore"));
+  }
+  function untilMidnightTo(month, day) {
+    const [y, m] = month.split("-").map(Number), t = new Date(y, m - 1, day), s = Math.max(0, Math.round((t - now()) / 1000));
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), mi = Math.floor(s % 3600 / 60);
+    return d ? `${d} day${d > 1 ? "s" : ""} ${h}h` : h ? `${h}h ${mi}m` : `${mi}m`;
+  }
+
+  /* ---------- daily header, timer and hints ---------- */
+  const hintsOn = d => { const b = daily.game.byId("d" + d); if (!b) return 0; const prev = daily.game.byId("d" + (d - 1)); return b.nodes.reduce((a, n) => a + ((prev && prev.byKey[n.key]) ? 0 : (daily.game.hints[n.key] || 0)), 0); };
+  function renderDailyWhere() {
+    if (!daily || !daily.game) { $("#where").innerHTML = "Daily"; $("#clock").textContent = ""; return; }
+    const b = cur(), d = dayOf(b), p = game.progress(b);
+    $("#where").innerHTML = `${shortMon(daily.month)} ${d} · ${esc(b.title)} <b>${p.done}/${p.of}</b>`;
+    renderClock();
+  }
+  function renderClock() {
+    const c = $("#clock");
+    if (mode !== "daily" || !daily || !daily.game || !settings.timer) { c.textContent = ""; return; }
+    const d = dayOf(cur()), done = daily.meta.d[d], ms = done ? done.ms : (daily.meta.t[d] || 0), h = done ? done.hints : hintsOn(d);
+    c.textContent = `${done ? "✓ " : ""}${fmt(ms)}${h ? ` · ${h} hint${h > 1 ? "s" : ""}` : ""}`;
+    c.classList.toggle("done", !!done);
+  }
+  let lastTick = Date.now(), ticks = 0;
+  setInterval(() => {
+    const t = Date.now(), dt = Math.min(5000, t - lastTick); lastTick = t;
+    if (mode === "daily" && daily && daily.game && !document.hidden && !overlayOpen()) {
+      const d = dayOf(cur());
+      if (!daily.meta.d[d]) { daily.meta.t[d] = (daily.meta.t[d] || 0) + dt; if (++ticks % 15 === 0) persistDaily(); }
+      renderClock();
+    }
+    /* midnight: the next day opens while the page is open */
+    if (daily && now().getDate() !== daily.dayNum && !loadDaily.busy) {
+      loadDaily.busy = true;
+      const was = mode;
+      if (was === "daily" && daily.game) daily.cur = curId;
+      loadDaily().then(() => { if (was === "daily") { if (daily.game) { game = daily.game; curId = daily.cur; startId = curId; } setMode("daily"); if (daily.game) { switchBoard("d" + daily.dayNum); toast(`${shortMon(daily.month)} ${daily.dayNum} is open: ${daily.titles[daily.dayNum] || ""}`); } } else renderEmpty(); }).finally(() => { loadDaily.busy = false; });
+    }
+    if (t % 30000 < 1000) { if (mode === "daily") { const ec = $("#emptyCount"); if (ec && daily && daily.next) ec.textContent = untilMidnightTo(daily.next.month, daily.next.day || 1); renderBoard(); } }
+  }, 1000);
+
+  /* tomorrow's board: a dashed outline where it will appear, with a countdown */
+  function lockedHub() {
+    if (mode !== "daily" || !daily || !daily.game) return "";
+    const nd = daily.dayNum + 1, at = daily.spots[String(nd)], title = daily.titles[String(nd)];
+    if (!at || !title || nd > daily.days) return "";
+    const x = at[0] * TILE, y = at[1] * TILE, w = Math.max(190, title.length * 12 + 60);
+    return `<g class="lockhub" transform="translate(${x},${y})"><rect x="${-w / 2}" y="-34" width="${w}" height="68" rx="16"/><text y="-9">${esc(title)}</text><text class="sub" y="15">Opens in ${esc(untilMidnight())}</text></g>`;
+  }
+  function dailyExtraSpots() {
+    if (!daily || !daily.game) return [];
+    const out = [], nd = daily.dayNum + 1;
+    if (daily.spots[String(nd)] && nd <= daily.days) out.push({ at: daily.spots[String(nd)], label: `${shortMon(daily.month)} ${nd} · ${daily.titles[String(nd)] || ""}`, sub: `opens in ${untilMidnight()}` });
+    return out;
+  }
+
+  /* ---------- finishing a day ---------- */
+  function checkDailyDone() {
+    const n = now();
+    daily.game.boards.forEach(b => {
+      const d = dayOf(b), p = daily.game.progress(b);
+      if (p.done < p.of || daily.meta.d[d]) return;
+      daily.meta.d[d] = { at: Date.now(), onDay: d === n.getDate() && monthOf(n) === daily.month, ms: daily.meta.t[d] || 0, hints: hintsOn(d) };
+      persistDaily(); dailyPush();
+      setTimeout(() => openResult(d), 900);
+    });
+  }
+  function streak() {
+    let d = daily.dayNum, s = 0;
+    if (!(daily.meta.d[d] && daily.meta.d[d].onDay)) d--;
+    while (d >= 1 && daily.meta.d[d] && daily.meta.d[d].onDay) { s++; d--; }
+    return s;
+  }
+  const SITE = location.origin + location.pathname;
+  function resultText(d) {
+    const r = daily.meta.d[d], b = daily.game.byId("d" + d), p = daily.game.progress(b), st = streak();
+    const lines = [`Tangents · ${shortMon(daily.month)} ${d}: ${b.title}`, `✅ ${p.of}/${p.of} words${settings.timer ? " in " + fmt(r.ms) : ""} · ${r.hints ? r.hints + " hint" + (r.hints > 1 ? "s" : "") : "no hints"}`];
+    if (r.onDay && st > 1) lines.push(`🔥 ${st}-day streak`);
+    lines.push(SITE);
+    return lines.join("\n");
+  }
+  function openResult(d) {
+    const r = daily.meta.d[d]; if (!r) return;
+    const b = daily.game.byId("d" + d), done = Object.keys(daily.meta.d).length;
+    $("#resTitle").textContent = `${shortMon(daily.month)} ${d} · ${b.title} ★`;
+    $("#resStats").innerHTML = [[settings.timer ? fmt(r.ms) : "–", "time"], [r.hints, r.hints === 1 ? "hint" : "hints"], [streak(), "day streak"], [`${done}/${daily.days}`, monthName(daily.month).slice(0, 3)]]
+      .map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
+    const left = daily.game.boards.filter(x => dayOf(x) < daily.dayNum && !daily.meta.d[dayOf(x)]).map(dayOf);
+    $("#resNote").textContent = (r.onDay ? `Done on the day. The next board opens in ${untilMidnight()}.` : `Finished after its day, so it counts toward the month but not the streak.`)
+      + (left.length ? ` Still to finish this month: ${left.map(x => shortMon(daily.month) + " " + x).join(", ")}.` : "");
+    const text = resultText(d), enc = encodeURIComponent(text);
+    $("#resText").textContent = text;
+    $("#resX").href = "https://twitter.com/intent/tweet?text=" + enc;
+    $("#resFb").href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(SITE) + "&quote=" + enc;
+    $("#resWa").href = "https://wa.me/?text=" + enc;
+    $("#resSms").href = "sms:?&body=" + enc;
+    $("#resShare").hidden = !navigator.share;
+    $("#result").dataset.day = d;
+    $("#result").classList.add("open");
+  }
+  const closeResult = () => { $("#result").classList.remove("open"); keepFocus(); };
+  $("#closeResult").addEventListener("click", closeResult);
+  $("#result").addEventListener("click", e => { if (e.target.id === "result") closeResult(); });
+  $("#resCopy").addEventListener("click", e => {
+    const b = e.currentTarget, t = $("#resText").textContent;
+    const done = ok => { b.textContent = ok ? "Copied ✓" : "Select the text and copy it"; setTimeout(() => { b.textContent = "Copy"; }, 1800); };
+    try { navigator.clipboard.writeText(t).then(() => done(true), () => done(false)); } catch (_) { done(false); }
+  });
+  $("#resShare").addEventListener("click", e => {
+    const b = e.currentTarget; b.textContent = "Opening…";
+    Promise.resolve().then(() => navigator.share({ text: $("#resText").textContent }))
+      .then(() => { b.textContent = "Shared ✓"; }, () => { b.textContent = "Share…"; })
+      .finally(() => setTimeout(() => { b.textContent = "Share…"; }, 1800));
+  });
+
+  /* the month in the menu: streak, days done, and a dot per day (tap a finished one to share it again) */
+  function renderMonthBox() {
+    const box = $("#monthBox");
+    if (!daily || !daily.game) { box.hidden = true; return; }
+    box.hidden = false;
+    $("#monthHead").textContent = `Your ${monthName(daily.month)}`;
+    const done = Object.keys(daily.meta.d).length, st = streak();
+    $("#monthTxt").textContent = `${done} of ${daily.days} days done · ${st}-day streak. Green: finished on the day. Orange: finished later.`;
+    let dots = "";
+    for (let d = 1; d <= daily.days; d++) {
+      const r = daily.meta.d[d];
+      dots += `<button type="button" class="dot${r ? (r.onDay ? " ok" : " late") : ""}${d === daily.dayNum ? " now" : ""}" data-day="${d}"${r ? "" : " disabled"} aria-label="${shortMon(daily.month)} ${d}${r ? ", finished" : ""}">${d}</button>`;
+    }
+    $("#monthDots").innerHTML = dots;
+  }
+  $("#monthDots").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b || b.disabled) return; menu.classList.remove("open"); openResult(+b.dataset.day); });
+  $("#menuBtn").addEventListener("click", renderMonthBox);
+
+  const timerBox = $("#timerBox"); timerBox.checked = settings.timer !== false; settings.timer = timerBox.checked;
+  timerBox.addEventListener("change", () => { settings.timer = timerBox.checked; try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} renderClock(); });
+  fuzzyBox.addEventListener("change", () => { if (daily && daily.game) daily.game.fuzzy = fuzzyBox.checked; });
+
+  loadDaily().then(() => {
+    const want = savedMode || ((daily && daily.game) ? "daily" : "explore");
+    if (want === "daily" && !team) setMode("daily"); else setMode("explore");
+    if (daily && daily.game) dailyPull();
+  });
 
   renderAll(); fitScreen(); keepFocus();
   requestAnimationFrame(() => { const id = curId; fitScreen(); fit(id); curId = id; renderAll(); });
