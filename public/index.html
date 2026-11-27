@@ -148,6 +148,8 @@ body.touch #kb { display: flex; }
 .tile.lock { border-style: dashed; background: transparent; color: var(--muted); cursor: default; font-size: 20px; }
 .tile:active, .tile.is-pressed { transform: scale(.94); }
 .tile.lock.soonday { font-size: 13px; color: var(--muted); }
+.testtag { display: inline-block; background: var(--exit); color: var(--exit-ink); border-radius: 6px; padding: 1px 6px; font-size: 11px; font-weight: 800; vertical-align: 1px; }
+#testerBox .row { flex-wrap: wrap; }
 .chip { flex: none; height: 38px; border-radius: 19px; padding: 0 14px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink);
   font-family: var(--body); font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform .08s, background-color .12s; }
 .chip small { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -308,6 +310,15 @@ body.touch #kb { display: flex; }
     <p>Each orange box hides a word; the number is how many letters it has. Lines join related words, and a word sitting between two others connects them both. Find a word and its neighbours appear. The further you get from the middle, the further the words wander from the topic.</p>
     <p>Purple words sit on the edge of the board. Finding one opens a whole new board, which gives you another place to start when you're stuck.</p>
     <p>Plurals and small spelling slips count. Tap a box, then Hint for a clue, then Letter as many times as you need. Each tap shows one more letter, all the way to the whole word. Drag to move around and pinch to zoom. Boards shows a map of every board you've opened.</p>
+    <div id="testerBox" hidden>
+      <h3>Tester mode</h3>
+      <p>Every built day is open, including drafts not yet approved. Plays here stay on this device and don't count toward your real streak.</p>
+      <div class="row">
+        <button class="btn" id="resetDay" type="button">Reset this day</button>
+        <a class="btn linkbtn" id="toReview" href="/review.html">Open the review page</a>
+        <button class="btn" id="testerOff" type="button">Turn off tester mode</button>
+      </div>
+    </div>
     <div id="monthBox" hidden>
       <h3 id="monthHead">Your month</h3>
       <p id="monthTxt" style="margin-bottom:8px"></p>
@@ -1293,7 +1304,7 @@ function createGame(world, saved, opts) {
      One board a day, a month at a time, from /api/daily. The server only sends a day once that date has begun
      somewhere on Earth; this page then waits for the player's own local midnight. Earlier days this month stay
      playable. A day is done when every word on its board is found; finishing on its own day keeps the streak. */
-  const MODEKEY = "tangents.mode", DAILYKEY = m => "tangents.daily." + m;
+  const MODEKEY = "tangents.mode", DAILYKEY = (m, test) => (test ? "tangents.test." : "tangents.daily.") + m;
   const pad2 = n => String(n).padStart(2, "0");
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -1304,6 +1315,15 @@ function createGame(world, saved, opts) {
     return new Date();
   }
   const monthOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  /* tester mode: a private link (#tester-KEY) opens every built day early; plays are kept apart from real progress */
+  const TESTERKEY = "tangents.tester";
+  let testerKey = null, testerLanding = false; try { testerKey = localStorage.getItem(TESTERKEY); } catch (e) {}
+  {
+    const m = /^#tester-([A-Za-z0-9]{8,64})$/.exec(location.hash || "");
+    if (m) { testerKey = m[1]; testerLanding = true; try { localStorage.setItem(TESTERKEY, testerKey); history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+  }
+  let wantDay = null; { const m = /^#day-(\d{1,2})$/.exec(location.hash || ""); if (m) { wantDay = +m[1]; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} } }
+  const isTest = () => !!(daily && daily.tester);
   const dayOf = b => +String(b.id).slice(1);
   let savedMode = null; try { savedMode = localStorage.getItem(MODEKEY); } catch (e) {}
 
@@ -1318,13 +1338,19 @@ function createGame(world, saved, opts) {
   const monthName = month => MONTHS[+month.split("-")[1] - 1];
 
   async function fetchMonth(month) {
-    try { const r = await fetch(`/api/daily?month=${month}`, { cache: "no-store" }); if (r.ok) return await r.json(); } catch (e) {}
+    try { const r = await fetch(`/api/daily?month=${month}${testerKey ? "&key=" + encodeURIComponent(testerKey) : ""}`, { cache: "no-store" }); if (r.ok) return await r.json(); } catch (e) {}
     return null;
   }
   async function loadDaily() {
-    const n = now(), month = monthOf(n), dayNum = n.getDate();
-    const j = await fetchMonth(month);
-    const boards = j && Array.isArray(j.boards) ? j.boards.filter(b => b.day <= dayNum) : [];
+    const n = now(); let month = monthOf(n), dayNum = n.getDate();
+    let j = await fetchMonth(month);
+    if (j && j.tester && !(j.boards || []).length) {   /* testing next month before it starts */
+      const nm = new Date(n.getFullYear(), n.getMonth() + 1, 1), nj = await fetchMonth(monthOf(nm));
+      if (nj && (nj.boards || []).length) { j = nj; month = monthOf(nm); if (!wantDay) wantDay = 1; }
+    }
+    const tester = !!(j && j.tester);
+    if (testerKey && j && !j.tester) { testerKey = null; try { localStorage.removeItem(TESTERKEY); } catch (e) {} toast("That tester link has expired"); }
+    const boards = j && Array.isArray(j.boards) ? j.boards.filter(b => tester || b.day <= dayNum) : [];
     let next = null;
     if (!boards.length) {   /* nothing open yet this month: is next month on its way? */
       const nm = new Date(n.getFullYear(), n.getMonth() + 1, 1), nj = await fetchMonth(monthOf(nm));
@@ -1332,17 +1358,19 @@ function createGame(world, saved, opts) {
       if (j && j.titles && j.titles[String(dayNum)] && !boards.length) next = { month, day: dayNum, title: j.titles[String(dayNum)] };
     }
     const prevCur = daily && daily.month === month ? daily.cur : null;
-    daily = { month, days: (j && j.days) || 31, titles: (j && j.titles) || {}, spots: (j && j.spots) || {}, dayNum, game: null, meta: { d: {}, t: {} }, cur: null, next };
+    daily = { month, days: (j && j.days) || 31, titles: (j && j.titles) || {}, spots: (j && j.spots) || {}, dayNum, game: null, meta: { d: {}, t: {} }, cur: null, next, tester, approved: {} };
+    if (tester) boards.forEach(b => { daily.approved[b.day] = !!b.approved; });
     if (boards.length) {
-      let st = null; try { st = JSON.parse(localStorage.getItem(DAILYKEY(month))); } catch (e) {}
+      let st = null; try { st = JSON.parse(localStorage.getItem(DAILYKEY(month, tester))); } catch (e) {}
       try {
         const world = { boards: boards.map(b => ({ id: "d" + b.day, title: b.title, at: b.at, start: b.day === 1, words: b.words })) };
-        daily.game = createGame(world, st, { open: b => dayOf(b) <= daily.dayNum });
+        daily.game = createGame(world, st, { open: b => daily.tester || dayOf(b) <= daily.dayNum });
         daily.game.fuzzy = settings.fuzzy !== false;
         daily.meta = { d: (st && st.d) || {}, t: (st && st.t) || {} };
         const want = prevCur || (st && st.cur);
-        const today = daily.game.byId("d" + dayNum) ? "d" + dayNum : "d" + Math.max(...boards.map(b => b.day));
+        const today = (wantDay && daily.game.byId("d" + wantDay)) ? "d" + wantDay : daily.game.byId("d" + dayNum) ? "d" + dayNum : "d" + Math.max(...boards.map(b => b.day));
         daily.cur = prevCur && daily.game.byId(prevCur) ? prevCur : today;
+        wantDay = null;
         if (!prevCur && want && want !== today) daily.cur = today;   /* a new visit always starts on today's board */
       } catch (e) { daily.game = null; console.error(e); }
     }
@@ -1350,7 +1378,8 @@ function createGame(world, saved, opts) {
   }
   function persistDaily() {
     if (!daily || !daily.game) return;
-    try { const o = daily.game.snapshot(); o.d = daily.meta.d; o.t = daily.meta.t; o.cur = mode === "daily" ? curId : daily.cur; localStorage.setItem(DAILYKEY(daily.month), JSON.stringify(o)); } catch (e) {}
+    try { const o = daily.game.snapshot(); o.d = daily.meta.d; o.t = daily.meta.t; o.cur = mode === "daily" ? curId : daily.cur; localStorage.setItem(DAILYKEY(daily.month, daily.tester), JSON.stringify(o)); } catch (e) {}
+    if (daily.tester) return;   /* test plays stay on this device */
     clearTimeout(persistDaily.timer); persistDaily.timer = setTimeout(dailyPush, 1500);
   }
   function dailyState() { const o = daily.game.snapshot(); o.d = daily.meta.d; o.t = daily.meta.t; return o; }
@@ -1360,11 +1389,11 @@ function createGame(world, saved, opts) {
     Object.keys(remote.d || {}).forEach(k => { if (!daily.meta.d[k] || remote.d[k].at < daily.meta.d[k].at) daily.meta.d[k] = remote.d[k]; });
     Object.keys(remote.t || {}).forEach(k => { daily.meta.t[k] = Math.max(daily.meta.t[k] || 0, remote.t[k]); });
     if (m.s.length > mine.s.length || JSON.stringify(m.h) !== JSON.stringify(mine.h || {})) daily.game.setState(m.s, m.h);
-    try { const o = dailyState(); o.cur = daily.cur; localStorage.setItem(DAILYKEY(daily.month), JSON.stringify(o)); } catch (e) {}
+    try { const o = dailyState(); o.cur = daily.cur; localStorage.setItem(DAILYKEY(daily.month, daily.tester), JSON.stringify(o)); } catch (e) {}
     if (mode === "daily") { renderAll(); if (daily.game.count() > before && before > 0) toast(`Picked up ${daily.game.count() - before} words from your other device`); }
   }
   async function dailyPush() {
-    if (!daily || !daily.game) return;
+    if (!daily || !daily.game || daily.tester) return;
     try {
       const r = await fetch("/api/player", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: playerId, space: daily.month, state: dailyState() }) });
       if (!r.ok) throw new Error(r.status);
@@ -1372,7 +1401,7 @@ function createGame(world, saved, opts) {
     } catch (e) {}
   }
   async function dailyPull() {
-    if (!daily || !daily.game) return;
+    if (!daily || !daily.game || daily.tester) return;
     try { const r = await fetch(`/api/player?id=${playerId}&space=${daily.month}`, { cache: "no-store" }); if (r.ok) mergeDaily(await r.json()); } catch (e) {}
   }
 
@@ -1419,7 +1448,7 @@ function createGame(world, saved, opts) {
   function renderDailyWhere() {
     if (!daily || !daily.game) { $("#where").innerHTML = "Daily"; $("#clock").textContent = ""; return; }
     const b = cur(), d = dayOf(b), p = game.progress(b);
-    $("#where").innerHTML = `${shortMon(daily.month)} ${d} · ${esc(b.title)} <b>${p.done}/${p.of}</b>`;
+    $("#where").innerHTML = `${daily.tester ? `<span class="testtag">${daily.approved[d] ? "Test" : "Draft"}</span> ` : ""}${shortMon(daily.month)} ${d} · ${esc(b.title)} <b>${p.done}/${p.of}</b>`;
     renderClock();
   }
   function renderClock() {
@@ -1449,14 +1478,14 @@ function createGame(world, saved, opts) {
 
   /* tomorrow's board: a dashed outline where it will appear, with a countdown */
   function lockedHub() {
-    if (mode !== "daily" || !daily || !daily.game) return "";
+    if (mode !== "daily" || !daily || !daily.game || daily.tester) return "";
     const nd = daily.dayNum + 1, at = daily.spots[String(nd)], title = daily.titles[String(nd)];
     if (!at || !title || nd > daily.days) return "";
     const x = at[0] * TILE, y = at[1] * TILE, w = Math.max(190, title.length * 12 + 60);
     return `<g class="lockhub" transform="translate(${x},${y})"><rect x="${-w / 2}" y="-34" width="${w}" height="68" rx="16"/><text y="-9">${esc(title)}</text><text class="sub" y="15">Opens in ${esc(untilMidnight())}</text></g>`;
   }
   function dailyExtraSpots() {
-    if (!daily || !daily.game) return [];
+    if (!daily || !daily.game || daily.tester) return [];
     const out = [], nd = daily.dayNum + 1;
     if (daily.spots[String(nd)] && nd <= daily.days) out.push({ at: daily.spots[String(nd)], label: `${shortMon(daily.month)} ${nd} · ${daily.titles[String(nd)] || ""}`, sub: `opens in ${untilMidnight()}` });
     return out;
@@ -1468,7 +1497,7 @@ function createGame(world, saved, opts) {
     daily.game.boards.forEach(b => {
       const d = dayOf(b), p = daily.game.progress(b);
       if (p.done < p.of || daily.meta.d[d]) return;
-      daily.meta.d[d] = { at: Date.now(), onDay: d === n.getDate() && monthOf(n) === daily.month, ms: daily.meta.t[d] || 0, hints: hintsOn(d) };
+      daily.meta.d[d] = { at: Date.now(), onDay: !daily.tester && d === n.getDate() && monthOf(n) === daily.month, ms: daily.meta.t[d] || 0, hints: hintsOn(d) };
       persistDaily(); dailyPush();
       setTimeout(() => openResult(d), 900);
     });
@@ -1538,13 +1567,29 @@ function createGame(world, saved, opts) {
   }
   $("#monthDots").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b || b.disabled) return; menu.classList.remove("open"); openResult(+b.dataset.day); });
   $("#menuBtn").addEventListener("click", renderMonthBox);
+  $("#menuBtn").addEventListener("click", () => { $("#testerBox").hidden = !testerKey; });
+  $("#resetDay").addEventListener("click", e => {
+    const b = e.currentTarget;
+    if (!(daily && daily.tester && daily.game && mode === "daily")) { b.textContent = "Switch to Daily first"; setTimeout(() => { b.textContent = "Reset this day"; }, 1600); return; }
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Tap again to clear this day"; setTimeout(() => { delete b.dataset.armed; b.textContent = "Reset this day"; }, 3000); return; }
+    delete b.dataset.armed;
+    const bd = cur(), d = dayOf(bd), snap = daily.game.snapshot(), keys = new Set(bd.nodes.map(n => n.key));
+    daily.game.setState(snap.s.filter(k => !keys.has(k)), Object.fromEntries(Object.entries(snap.h).filter(([k]) => !keys.has(k))));
+    delete daily.meta.d[d]; delete daily.meta.t[d];
+    persistDaily(); sel = null; renderAll(); fit(curId);
+    b.textContent = "Cleared ✓"; setTimeout(() => { b.textContent = "Reset this day"; }, 1600);
+  });
+  $("#testerOff").addEventListener("click", e => {
+    try { localStorage.removeItem(TESTERKEY); } catch (_) {}
+    e.currentTarget.textContent = "Turning off…"; setTimeout(() => location.reload(), 300);
+  });
 
   const timerBox = $("#timerBox"); timerBox.checked = settings.timer !== false; settings.timer = timerBox.checked;
   timerBox.addEventListener("change", () => { settings.timer = timerBox.checked; try { localStorage.setItem(SETTINGS, JSON.stringify(settings)); } catch (e) {} renderClock(); });
   fuzzyBox.addEventListener("change", () => { if (daily && daily.game) daily.game.fuzzy = fuzzyBox.checked; });
 
   loadDaily().then(() => {
-    const want = savedMode || ((daily && daily.game) ? "daily" : "explore");
+    const want = (daily && daily.tester && (testerLanding || wantDay)) ? "daily" : savedMode || ((daily && daily.game) ? "daily" : "explore");
     if (want === "daily" && !team) setMode("daily"); else setMode("explore");
     if (daily && daily.game) dailyPull();
   });

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Tangents · Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Review page for daily boards: approve or flag each word, approve a day for players, print a solved board.
+   Tester key only (the same key as tester mode in the game). */
+:root {
+  --bg: #e8eef3; --panel: #ffffff; --ink: #16202a; --muted: #5a6b7c; --line: #d2dbe4; --line-strong: #9eb0c1;
+  --accent: #1f6f5c; --accent-ink: #ffffff;
+  --r1: #f2b63f; --r1e: #b07a12; --r1i: #4a3000; --r2: #66c27a; --r2e: #2c8a43; --r2i: #0b3016; --r3: #7fb6e8; --r3e: #2f6fa8; --r3i: #0b2440;
+  --br: #8d6cf0; --bre: #5b3fc4; --bri: #ffffff; --bad: #d4473f; --badbg: #fbebeb; --okbg: #e5f4e4;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif; --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0d141b; --panel: #15202b; --ink: #e9eff5; --muted: #93a5b7; --line: #243443; --line-strong: #4b6177;
+  --accent: #4cc3a2; --accent-ink: #062019; --r1: #e6a93b; --r1e: #f3c96f; --r2: #52b96b; --r2e: #8fe3a3; --r3: #6aa6dc; --r3e: #a9d0f5;
+  --br: #9f86ff; --bre: #cbbdff; --bri: #160a3a; --bad: #ff7a70; --badbg: #3a1d1d; --okbg: #183222; color-scheme: dark; } }
+* { box-sizing: border-box; min-width: 0; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--body); overflow-x: clip; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 12px; }
+header { background: var(--panel); border-bottom: 2px solid var(--line); padding: calc(10px + env(safe-area-inset-top)) 0 10px; }
+header .wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+h1 { font: 600 20px var(--display); margin: 0; flex: 1; }
+h1 small { display: block; font: 700 12px var(--body); color: var(--muted); }
+h2 { font: 600 24px/1.1 var(--display); margin: 0; }
+.btn { font: 800 14px var(--body); border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink); border-radius: 10px; padding: 0 12px; min-height: 40px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: transform .08s, background-color .12s; }
+.btn:active, .btn.is-pressed { transform: scale(.94); background: var(--line); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.good { background: var(--r2); border-color: var(--r2e); color: var(--r2i); }
+.btn[disabled] { opacity: .4; cursor: default; }
+main { padding: 12px 0 60px; display: grid; gap: 12px; }
+.card { background: var(--panel); border: 2px solid var(--line); border-radius: 14px; padding: 12px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--ink); font: 800 14px var(--body); cursor: pointer; position: relative; transition: transform .08s; }
+.chip:active { transform: scale(.9); }
+.chip.on { outline: 3px solid var(--ink); outline-offset: 1px; }
+.chip.live { background: var(--r2); border-color: var(--r2e); color: var(--r2i); }
+.chip[disabled] { opacity: .3; cursor: default; }
+.chip i { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--bad); color: #fff; font: 800 11px/18px var(--body); font-style: normal; padding: 0 4px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status { color: var(--muted); font-weight: 800; font-size: 14px; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font: 800 12px var(--body); }
+.pill.live { background: var(--r2); color: var(--r2i); }
+.pill.draft { background: var(--br); color: var(--bri); }
+.bar { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; display: flex; }
+.bar b { background: var(--r2e); } .bar s { background: var(--bad); text-decoration: none; }
+.fig { position: relative; height: min(60vh, 560px); border-radius: 12px; background: var(--bg); overflow: hidden; }
+.fig svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.edge { stroke: var(--line-strong); stroke-width: 2.5; }
+.n rect { stroke-width: 2.5; } .n text { font: 800 19px var(--body); text-anchor: middle; dominant-baseline: central; }
+.n1 rect { fill: var(--r1); stroke: var(--r1e); } .n1 text { fill: var(--r1i); }
+.n2 rect { fill: var(--r2); stroke: var(--r2e); } .n2 text { fill: var(--r2i); }
+.n3 rect { fill: var(--r3); stroke: var(--r3e); } .n3 text { fill: var(--r3i); }
+.nb rect { fill: var(--br); stroke: var(--bre); } .nb text { fill: var(--bri); }
+.nb.in rect { stroke-dasharray: 7 5; }
+.n.flag rect { stroke: var(--bad); stroke-width: 6; }
+.hub rect { fill: var(--accent); } .hub text { fill: var(--accent-ink); font: 600 22px var(--display); text-anchor: middle; dominant-baseline: central; }
+.mark { font: 800 18px var(--body); dominant-baseline: central; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; font-weight: 800; color: var(--muted); }
+.legend i { display: inline-block; width: 13px; height: 13px; border-radius: 4px; vertical-align: -2px; margin-right: 4px; border: 2px solid; }
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; text-align: left; }
+th { font-size: 12px; color: var(--muted); border-top: 0; }
+tr.ok { background: var(--okbg); } tr.flag { background: var(--badbg); }
+td.w { font-weight: 800; }
+td.w small, td.c small { display: block; font-weight: 700; color: var(--muted); font-size: 12px; }
+td.acts { white-space: nowrap; width: 96px; }
+.tog { width: 42px; height: 42px; border-radius: 10px; border: 2px solid var(--line-strong); background: var(--panel); color: var(--muted); font: 800 18px var(--body); cursor: pointer; transition: transform .08s, background-color .12s; }
+.tog:active { transform: scale(.88); }
+.tog.ok.on { background: var(--r2); border-color: var(--r2e); color: var(--r2i); }
+.tog.fl.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.tog.busy { opacity: .5; }
+textarea { width: 100%; font: 15px var(--body); border: 2px solid var(--bad); border-radius: 8px; padding: 6px 8px; background: var(--panel); color: var(--ink); margin-top: 6px; min-height: 44px; }
+.keyform { display: grid; gap: 10px; max-width: 420px; }
+.keyform input { font: 16px var(--body); padding: 10px; border: 2px solid var(--line-strong); border-radius: 10px; background: var(--panel); color: var(--ink); }
+#print { display: none; }
+@media (max-width: 600px) {
+  td.c { display: block; padding-top: 0; border-top: 0; }
+  tr td.c { padding-left: 6px; }
+  .n text { font-size: 21px; }
+}
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff; color: #000; }
+  header, main, .noprint { display: none !important; }
+  #print { display: block; }
+  .page { page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .page h2 { font-size: 20pt; margin: 0 0 4pt; }
+  .page .sub { font-size: 10pt; margin: 0 0 6pt; color: #333; }
+  .page svg { width: 100%; height: 118mm; border: 1px solid #bbb; border-radius: 6px; }
+  .page table { font-size: 9.5pt; margin-top: 6pt; }
+  .page td, .page th { padding: 3pt 4pt; border-top: 1px solid #ccc; }
+  .page td.box { width: 16pt; font-size: 12pt; }
+  .n text, .hub text { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Tangents review<small id="sub">Daily boards</small></h1>
+    <a class="btn" id="playBtn" href="/">Play this day</a>
+  </div>
+</header>
+<main class="wrap" id="main">
+  <section class="card" id="keyCard" hidden>
+    <form class="keyform" id="keyForm">
+      <h2>Tester key</h2>
+      <p class="status">Paste the tester key (or open your tester link once on this device).</p>
+      <input id="keyIn" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Tester key">
+      <button class="btn primary" type="submit" id="keyGo">Open review</button>
+      <p class="status" id="keyMsg"></p>
+    </form>
+  </section>
+  <section class="card" id="daysCard" hidden>
+    <div class="chips" id="chips"></div>
+    <p class="status" style="margin:8px 0 0">Green days are approved for players. A red badge counts flagged words.</p>
+  </section>
+  <section class="card" id="dayCard" hidden>
+    <div class="row" style="justify-content: space-between; align-items: flex-start;">
+      <div><h2 id="dTitle"></h2><div class="status" id="dSub"></div></div>
+      <span class="pill" id="dPill"></span>
+    </div>
+    <div style="margin:10px 0 6px" class="bar" id="dBar"></div>
+    <div class="status" id="dCount"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="approveDay" type="button">Approve day for players</button>
+      <button class="btn" id="approveRest" type="button">Approve all unmarked words</button>
+      <button class="btn" id="printDay" type="button">Print this day</button>
+      <button class="btn" id="printWeek" type="button">Print this week</button>
+    </div>
+    <p class="status" id="saveMsg" aria-live="polite" style="min-height:1.4em;margin:8px 0 0"></p>
+  </section>
+  <section class="card" id="boardCard" hidden>
+    <div class="fig"><svg id="svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Solved board"></svg></div>
+    <div class="legend" style="margin-top:8px">
+      <span><i style="background:var(--r1);border-color:var(--r1e)"></i>Ring 1</span>
+      <span><i style="background:var(--r2);border-color:var(--r2e)"></i>Ring 2</span>
+      <span><i style="background:var(--r3);border-color:var(--r3e)"></i>Ring 3</span>
+      <span><i style="background:var(--br);border-color:var(--bre)"></i>Bridge (dashed: from the day before)</span>
+      <span><i style="background:transparent;border-color:var(--bad)"></i>Flagged</span>
+    </div>
+  </section>
+  <section class="card" id="listCard" hidden>
+    <table><thead><tr><th>Review</th><th>Word</th><th>Clue</th></tr></thead><tbody id="rows"></tbody></table>
+  </section>
+</main>
+<div id="print"></div>
+<script>
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const TILE = 1250;
+let key = null, month = null, data = null, marks = { words: {}, days: {} }, day = null;
+
+/* every button shows it was pressed */
+document.addEventListener("click", e => { const b = e.target.closest(".btn"); if (!b) return; b.classList.add("is-pressed"); setTimeout(() => b.classList.remove("is-pressed"), 220); }, true);
+
+try { key = localStorage.getItem("tangents.tester"); } catch (e) {}
+{ const m = /^#tester-([A-Za-z0-9]{8,64})$/.exec(location.hash || ""); if (m) { key = m[1]; try { localStorage.setItem("tangents.tester", key); history.replaceState(null, "", location.pathname); } catch (e) {} } }
+{ const m = /^#day-(\d{1,2})$/.exec(location.hash || ""); if (m) day = +m[1]; }
+
+const pad = n => String(n).padStart(2, "0");
+const monthOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+async function getJSON(u) { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+async function start() {
+  if (!key) { $("#keyCard").hidden = false; return; }
+  $("#sub").textContent = "Loading…";
+  const now = new Date(), tries = [monthOf(now), monthOf(new Date(now.getFullYear(), now.getMonth() + 1, 1))];
+  for (const m of tries) {
+    let j; try { j = await getJSON(`/api/daily?month=${m}&key=${encodeURIComponent(key)}`); } catch (e) { j = null; }
+    if (j && !j.tester) { $("#keyCard").hidden = false; $("#keyMsg").textContent = "That key wasn't accepted."; try { localStorage.removeItem("tangents.tester"); } catch (e) {} key = null; $("#sub").textContent = "Daily boards"; return; }
+    if (j && j.boards.length) { data = j; month = m; break; }
+  }
+  if (!data) { $("#sub").textContent = "No built boards yet"; return; }
+  try { marks = await getJSON(`/api/review?key=${encodeURIComponent(key)}&month=${month}`); } catch (e) {}
+  data.byDay = {}; data.boards.forEach(b => { data.byDay[b.day] = b; });
+  if (!day || !data.byDay[day]) {   /* first day that still needs a look */
+    const open = data.boards.find(b => !marks.days[b.day]);
+    day = (open || data.boards[0]).day;
+  }
+  $("#sub").textContent = `${MONTHS[+month.split("-")[1] - 1]} ${month.split("-")[0]} · ${data.boards.length} built`;
+  ["#daysCard", "#dayCard", "#boardCard", "#listCard"].forEach(s => { $(s).hidden = false; });
+  render();
+}
+$("#keyForm").addEventListener("submit", e => {
+  e.preventDefault(); const v = $("#keyIn").value.trim();
+  if (!/^[A-Za-z0-9]{8,64}$/.test(v)) { $("#keyMsg").textContent = "Keys are letters and numbers only."; return; }
+  key = v; try { localStorage.setItem("tangents.tester", v); } catch (_) {}
+  $("#keyGo").textContent = "Checking…"; $("#keyCard").hidden = true; start().finally(() => { $("#keyGo").textContent = "Open review"; });
+});
+
+/* ---------- reading a day's board ---------- */
+function parse(b) {
+  const out = [];
+  b.words.split("\n").filter(Boolean).forEach(l => {
+    const lt = l.indexOf("<"), bar = l.indexOf("|");
+    const forms = l.slice(0, lt).split("/"), links = l.slice(lt + 1, bar).split("+");
+    let clue = l.slice(bar + 1), pos = null; const at = clue.lastIndexOf("@");
+    if (at >= 0) { const [a, r] = clue.slice(at + 1).split(",").map(Number); pos = { a, r }; clue = clue.slice(0, at).trim(); }
+    out.push({ w: forms[0], alts: forms.slice(1), k: norm(forms[0]), links: links.map(x => x === "hub" ? null : norm(x)), clue, pos });
+  });
+  return out;
+}
+function dayModel(d) {
+  const b = data.byDay[d], words = parse(b), prev = data.byDay[d - 1] ? parse(data.byDay[d - 1]) : [], next = data.byDay[d + 1] ? parse(data.byDay[d + 1]) : [];
+  const cx = b.at[0] * TILE, cy = b.at[1] * TILE, by = {};
+  words.forEach(n => { by[n.k] = n; });
+  words.forEach(n => {
+    let p = n.pos, ox = cx, oy = cy;
+    if (!p) { const o = prev.find(x => x.k === n.k && x.pos); if (o) { p = o.pos; ox = data.byDay[d - 1].at[0] * TILE; oy = data.byDay[d - 1].at[1] * TILE; if (!n.clue) n.clue = o.clue; n.ring = "in"; } }
+    if (!p) p = { a: 0, r: 0 };
+    const a = p.a * Math.PI / 180; n.x = ox + Math.sin(a) * p.r - cx; n.y = oy - Math.cos(a) * p.r - cy;
+    if (!n.ring && next.some(x => x.k === n.k)) n.ring = "out";
+  });
+  /* rings: 1 links to the centre, then one more for each step out */
+  let changed = true; words.forEach(n => { if (!n.ring && n.links.includes(null)) n.ring = 1; });
+  while (changed) { changed = false; words.forEach(n => { if (n.ring) return; const r = n.links.map(k => by[k] && typeof by[k].ring === "number" ? by[k].ring : null).filter(x => x); if (r.length) { n.ring = Math.min(3, Math.min(...r) + 1); changed = true; } }); }
+  words.forEach(n => { if (!n.ring) n.ring = 2; });
+  return { b, words, by };
+}
+const markOf = (d, k) => marks.words[`${d}:${k}`] || null;
+const boxW = s => Math.max(56, s.length * 11.6 + 26);
+const cls = n => n.ring === "in" || n.ring === "out" ? "nb " + n.ring : "n" + n.ring;
+function boardSVG(m, d) {
+  let x0 = -140, x1 = 140, y0 = -40, y1 = 40, lines = "", boxes = "";
+  m.words.forEach(n => {
+    n.links.forEach(k => { const p = k ? m.by[k] : { x: 0, y: 0 }; if (p) lines += `<line class="edge" x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}"/>`; });
+    const w = boxW(n.w), mk = markOf(d, n.k);
+    x0 = Math.min(x0, n.x - w / 2); x1 = Math.max(x1, n.x + w / 2); y0 = Math.min(y0, n.y - 26); y1 = Math.max(y1, n.y + 26);
+    boxes += `<g class="n ${cls(n)}${mk && mk.s === "flag" ? " flag" : ""}" transform="translate(${n.x},${n.y})"><rect x="${-w / 2}" y="-23" width="${w}" height="46" rx="10"/><text y="1">${esc(n.w)}</text>${mk && mk.s === "ok" ? `<text class="mark" x="${w / 2 + 14}" y="0" fill="var(--r2e)">✓</text>` : mk && mk.s === "flag" ? `<text class="mark" x="${w / 2 + 14}" y="0" fill="var(--bad)">⚑</text>` : ""}</g>`;
+  });
+  const tw = Math.max(150, m.b.title.length * 13 + 40), pd = 24;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0 - pd} ${y0 - pd} ${x1 - x0 + 2 * pd + 20} ${y1 - y0 + 2 * pd}" preserveAspectRatio="xMidYMid meet">${lines}<g class="hub"><rect x="${-tw / 2}" y="-26" width="${tw}" height="52" rx="13"/><text y="1">${esc(m.b.title)}</text></g>${boxes}</svg>`;
+}
+const order = n => ({ in: 0, 1: 1, 2: 2, 3: 3, out: 4 })[n.ring];
+const ringName = n => n.ring === "in" ? "bridge from the day before" : n.ring === "out" ? "bridge to the next day" : `ring ${n.ring}`;
+const dateLabel = d => { const [y, mo] = month.split("-").map(Number), t = new Date(y, mo - 1, d); return `${WEEK[t.getDay()]}, ${MONTHS[mo - 1].slice(0, 3)} ${d}`; };
+const isLive = d => !!(data.byDay[d] && marks.days[d]);
+
+/* ---------- screen ---------- */
+function render() {
+  let chips = "";
+  for (let d = 1; d <= data.days; d++) {
+    const b = data.byDay[d], flags = b ? parse(b).filter(n => (markOf(d, n.k) || {}).s === "flag").length : 0;
+    chips += `<button type="button" class="chip${d === day ? " on" : ""}${b && isLive(d) ? " live" : ""}" data-day="${d}"${b ? "" : " disabled"} aria-label="${MONTHS[+month.split("-")[1] - 1]} ${d}">${d}${flags ? `<i>${flags}</i>` : ""}</button>`;
+  }
+  $("#chips").innerHTML = chips;
+  const on = $("#chips .on"); if (on) on.scrollIntoView({ block: "nearest", inline: "center" });
+  const m = dayModel(day), words = m.words.slice().sort((a, b) => order(a) - order(b));
+  const ok = words.filter(n => (markOf(day, n.k) || {}).s === "ok").length, fl = words.filter(n => (markOf(day, n.k) || {}).s === "flag").length;
+  $("#dTitle").textContent = `${MONTHS[+month.split("-")[1] - 1].slice(0, 3)} ${day} · ${m.b.title}`;
+  $("#dSub").textContent = `${dateLabel(day)} · ${words.length} words`;
+  $("#dPill").className = "pill " + (isLive(day) ? "live" : "draft");
+  $("#dPill").textContent = isLive(day) ? "Approved for players" : "Draft: not released";
+  $("#dBar").innerHTML = `<b style="width:${ok / words.length * 100}%"></b><s style="width:${fl / words.length * 100}%"></s>`;
+  $("#dCount").textContent = `${ok} approved · ${fl} flagged · ${words.length - ok - fl} still to check`;
+  $("#approveDay").textContent = isLive(day) ? "Take back to draft" : "Approve day for players";
+  $("#playBtn").href = `/#day-${day}`;
+  $("#svg").outerHTML = boardSVG(m, day).replace("<svg ", '<svg id="svg" role="img" aria-label="Solved board" ');
+  $("#rows").innerHTML = words.map(n => {
+    const mk = markOf(day, n.k) || {}, s = mk.s || "";
+    const links = n.links.map(k => k ? (m.by[k] ? m.by[k].w : k) : "centre").join(", ");
+    return `<tr class="${s}" data-k="${n.k}"><td class="acts"><button type="button" class="tog ok${s === "ok" ? " on" : ""}" data-s="ok" aria-label="Approve ${esc(n.w)}" aria-pressed="${s === "ok"}">✓</button> <button type="button" class="tog fl${s === "flag" ? " on" : ""}" data-s="flag" aria-label="Flag ${esc(n.w)}" aria-pressed="${s === "flag"}">⚑</button></td>
+      <td class="w">${esc(n.w)}${n.alts.length ? `<small>also: ${esc(n.alts.join(", "))}</small>` : ""}<small>${esc(ringName(n))}</small></td>
+      <td class="c">${esc(n.clue || "")}<small>links to ${esc(links)}</small>${s === "flag" ? `<textarea data-note placeholder="What's wrong? (saved when you leave the box)">${esc(mk.note || "")}</textarea>` : ""}</td></tr>`;
+  }).join("");
+}
+$("#chips").addEventListener("click", e => { const c = e.target.closest("[data-day]"); if (!c || c.disabled) return; day = +c.dataset.day; try { history.replaceState(null, "", "#day-" + day); } catch (_) {} render(); });
+
+async function save(body, msg) {
+  $("#saveMsg").textContent = "Saving…";
+  try {
+    const r = await fetch("/api/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ key, month }, body)) });
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); if (j.words) marks.words = j.words; if (j.days) marks.days = j.days;
+    $("#saveMsg").textContent = msg || "Saved ✓"; return true;
+  } catch (e) { $("#saveMsg").textContent = "Couldn't save. Check your connection and try again."; return false; }
+}
+$("#rows").addEventListener("click", async e => {
+  const t = e.target.closest(".tog"); if (!t) return;
+  const tr = t.closest("tr"), k = tr.dataset.k, cur = markOf(day, k) || {};
+  const s = cur.s === t.dataset.s ? "" : t.dataset.s;
+  t.classList.add("busy");
+  await save({ word: `${day}:${k}`, s, note: s === "flag" ? (cur.note || "") : "" });
+  render();
+  if (s === "flag") { const ta = $(`tr[data-k="${k}"] textarea`); if (ta) ta.focus(); }
+});
+$("#rows").addEventListener("focusout", async e => {
+  const ta = e.target.closest("textarea[data-note]"); if (!ta) return;
+  const k = ta.closest("tr").dataset.k, cur = markOf(day, k) || {};
+  if ((cur.note || "") === ta.value.trim()) return;
+  await save({ word: `${day}:${k}`, s: "flag", note: ta.value.trim() }, "Note saved ✓");
+});
+$("#approveRest").addEventListener("click", async e => {
+  const b = e.currentTarget, m = dayModel(day), todo = m.words.filter(n => !markOf(day, n.k));
+  if (!todo.length) { $("#saveMsg").textContent = "Every word already has a mark."; return; }
+  b.disabled = true; b.textContent = "Approving…";
+  for (const n of todo) await save({ word: `${day}:${n.k}`, s: "ok", note: "" }, `${todo.length} words approved ✓`);
+  b.disabled = false; b.textContent = "Approve all unmarked words"; render();
+});
+$("#approveDay").addEventListener("click", async e => {
+  const b = e.currentTarget, live = isLive(day);
+  if (!live) {
+    const m = dayModel(day), fl = m.words.filter(n => (markOf(day, n.k) || {}).s === "flag").length;
+    if (fl && !b.dataset.armed) { b.dataset.armed = "1"; b.textContent = `${fl} flagged: tap again to approve anyway`; setTimeout(() => { delete b.dataset.armed; render(); }, 3500); return; }
+  }
+  delete b.dataset.armed; b.textContent = live ? "Unapproving…" : "Approving…";
+  await save({ day, approve: !live }, live ? "Day taken back to draft ✓" : "Approved: players get it on its date ✓");
+  render();
+});
+
+/* ---------- printing ---------- */
+function printDays(list) {
+  $("#print").innerHTML = list.filter(d => data.byDay[d]).map(d => {
+    const m = dayModel(d), words = m.words.slice().sort((a, b) => order(a) - order(b));
+    return `<section class="page"><h2>${esc(MONTHS[+month.split("-")[1] - 1])} ${d} · ${esc(m.b.title)}</h2><p class="sub">${esc(dateLabel(d))} · ${words.length} words · ${isLive(d) ? "approved for players" : "draft"}</p>${boardSVG(m, d)}
+      <table><thead><tr><th></th><th></th><th>Word</th><th>Clue</th><th>Links to</th></tr></thead><tbody>${words.map(n => { const mk = markOf(d, n.k) || {}; return `<tr><td class="box">☐</td><td class="box">${mk.s === "ok" ? "✓" : mk.s === "flag" ? "⚑" : ""}</td><td><b>${esc(n.w)}</b><br><small>${esc(ringName(n))}</small></td><td>${esc(n.clue || "")}${mk.note ? `<br><i>Note: ${esc(mk.note)}</i>` : ""}</td><td>${esc(n.links.map(k => k ? (m.by[k] ? m.by[k].w : k) : "centre").join(", "))}</td></tr>`; }).join("")}</tbody></table></section>`;
+  }).join("");
+  setTimeout(() => { try { window.print(); } catch (e) { $("#saveMsg").textContent = "Printing isn't available here. Use your browser's Share or Print menu."; } }, 60);
+}
+$("#printDay").addEventListener("click", () => printDays([day]));
+$("#printWeek").addEventListener("click", () => { const s = Math.floor((day - 1) / 7) * 7 + 1; printDays([s, s + 1, s + 2, s + 3, s + 4, s + 5, s + 6]); });
+
+start();
+}
+</script>
+</body>
+</html>
